@@ -53,21 +53,15 @@
  * of an archive of attached applications.                */
 extern char _cpio_archive[];
 
-const seL4_BootInfo* _boot_info;
-
+/* root tasks cspace */
+static cspace_t cspace;
 
 struct {
 
     seL4_Word tcb_addr;
     seL4_TCB tcb_cap;
 
-    seL4_Word vroot_addr;
-    seL4_ARM_PageDirectory vroot;
-
-    seL4_Word ipc_buffer_addr;
-    seL4_CPtr ipc_buffer_cap;
-
-    cspace_t *croot;
+    cspace_t cspace;
 
 } tty_test_process;
 
@@ -403,25 +397,33 @@ static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge) {
 /*
  * Main entry point - called by crt.
  */
-int main(void) {
+int main(void)
+{
+    /* Retrieve boot info from seL4 */
+    seL4_BootInfo *boot_info = platsupport_get_bootinfo();
+    ZF_LOGF_IF(!boot_info, "Failed to retrieve boot info\n");
+    debug_print_bootinfo(boot_info);
 
-#ifdef SEL4_DEBUG_KERNEL
-    seL4_DebugNameThread(seL4_CapInitThreadTCB, "SOS:root");
-#endif
+    printf("\nSOS Starting...\n");
 
-    dprintf(0, "\nSOS Starting...\n");
+    NAME_THREAD(seL4_CapInitThreadTCB, "SOS:root");
 
-    _sos_init(&_sos_ipc_ep_cap, &_sos_interrupt_ep_cap);
+    /* Initialise the cspace manager, ut manager and dma */
+    sos_bootstrap(&cspace, boot_info);
+
+    /* Initialise other system compenents here */
+    seL4_CPtr ipc_ep, ntfn;
+    sos_ipc_init(&ipc_ep, &ntfn);
 
     /* Initialise the network hardware */
-    network_init(badge_irq_ep(_sos_interrupt_ep_cap, IRQ_BADGE_NETWORK));
+    network_init(&cspace, badge_irq_ep(ntfn, IRQ_BADGE_NETWORK));
 
     /* Start the user application */
-    start_first_process(TTY_NAME, _sos_ipc_ep_cap);
+    bool success = start_first_process(TTY_NAME, ipc_ep);
+    ZF_LOGF_IF(!success, "Failed to start first process");
 
-    /* Wait on synchronous endpoint for IPC */
-    dprintf(0, "\nSOS entering syscall loop\n");
-    syscall_loop(_sos_ipc_ep_cap);
+    printf("\nSOS entering syscall loop\n");
+    syscall_loop(ipc_ep, ntfn);
 
     /* Not reached */
     return 0;
