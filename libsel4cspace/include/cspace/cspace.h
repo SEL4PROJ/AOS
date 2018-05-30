@@ -32,7 +32,10 @@
 #include <stdlib.h>
 #include <cspace/bitfield.h>
 
+/* the cspace needs to keep a set of free slots to ensure it can allocate further structures
+ * when we run out of 2nd level cnodes. 3 for potential mapping structures, 1 for a bookkeeping frame */
 #define MAPPING_SLOTS 3
+#define WATERMARK_SLOTS (MAPPING_SLOTS + 1)
 
 /* All cnodes created by this library are exactly this size, where size = 2^size_bits */
 #define CNODE_SIZE_BITS 12
@@ -145,7 +148,7 @@ struct cspace {
     cspace_alloc_t alloc;
 
     /* backup slots to use if we need to map frames for cspace bookkeeping */
-    seL4_CPtr watermark[MAPPING_SLOTS];
+    seL4_CPtr watermark[WATERMARK_SLOTS];
 };
 
 typedef enum {

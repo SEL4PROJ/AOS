@@ -437,7 +437,7 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     }
 
     /* finally allocate the watermark */
-    for (int i = 0; i < MAPPING_SLOTS; i++) {
+    for (int i = 0; i < WATERMARK_SLOTS; i++) {
         cspace->watermark[i] = cspace_alloc_slot(cspace);
         ZF_LOGF_IF(cspace->watermark[i] == seL4_CapNull, "Failed to allocate watermark cslot");
     }
