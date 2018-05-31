@@ -1,108 +1,144 @@
 /*
- * Copyright 2014, NICTA
+ * Copyright 2018, Data61
+ * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ * ABN 41 687 119 230.
  *
  * This software may be distributed and modified according to the terms of
  * the BSD 2-Clause license. Note that NO WARRANTY is provided.
  * See "LICENSE_BSD2.txt" for details.
  *
- * @TAG(NICTA_BSD)
+ * @TAG(DATA61_BSD)
  */
+#include <sel4/sel4.h>
+#include <sel4/sel4_arch/mapping.h>
 
 #include "mapping.h"
-
-#include <ut_manager/ut.h>
+#include "ut.h"
 #include "vmem_layout.h"
 
-#define verbose 0
-#include <sys/panic.h>
-#include <sys/debug.h>
-#include <cspace/cspace.h>
-
-extern const seL4_BootInfo* _boot_info;
-
-
 /**
- * Maps a page table into the root servers page directory
- * @param vaddr The virtual address of the mapping
+ * Retypes and maps a page table into the root servers page global directory
+ * @param cspace that the cptrs refer to
+ * @param vaddr  the virtual address of the mapping
+ * @param ut     a 4k untyped object
+ * @param empty  an empty slot to retype into a pt
  * @return 0 on success
  */
-static int 
-_map_page_table(seL4_ARM_PageDirectory pd, seL4_Word vaddr){
-    seL4_Word pt_addr;
-    seL4_ARM_PageTable pt_cap;
-    int err;
+static seL4_Error retype_map_pt(cspace_t *cspace, seL4_CPtr vspace, seL4_Word vaddr, seL4_CPtr ut, seL4_CPtr empty)
+{
 
-    /* Allocate a PT object */
-    pt_addr = ut_alloc(seL4_PageTableBits);
-    if(pt_addr == 0){
-        return !0;
+    seL4_Error err = cspace_untyped_retype(cspace, ut, empty, seL4_ARM_PageTableObject, seL4_PageBits);
+    if (err) {
+        return err;
     }
-    /* Create the frame cap */
-    err =  cspace_ut_retype_addr(pt_addr, 
-                                 seL4_ARM_PageTableObject,
-                                 seL4_PageTableBits,
-                                 cur_cspace,
-                                 &pt_cap);
-    if(err){
-        return !0;
-    }
-    /* Tell seL4 to map the PT in for us */
-    err = seL4_ARM_PageTable_Map(pt_cap, 
-                                 pd, 
-                                 vaddr, 
-                                 seL4_ARM_Default_VMAttributes);
-    return err;
+
+    return seL4_ARM_PageTable_Map(empty, vspace, vaddr, seL4_ARM_Default_VMAttributes);
 }
 
-int 
-map_page(seL4_CPtr frame_cap, seL4_ARM_PageDirectory pd, seL4_Word vaddr, 
-                seL4_CapRights rights, seL4_ARM_VMAttributes attr){
-    int err;
+/**
+ * Retypes and maps a page directory into the root servers page global directory
+ * @param cspace that the cptrs refer to
+ * @param vaddr  the virtual address of the mapping
+ * @param ut     a 4k untyped object
+ * @param empty  an empty slot to retype into a pd
+ * @return 0 on success
+ */
+static seL4_Error retype_map_pd(cspace_t *cspace, seL4_CPtr vspace, seL4_Word vaddr, seL4_CPtr ut, seL4_CPtr empty)
+{
 
+    seL4_Error err = cspace_untyped_retype(cspace, ut, empty, seL4_ARM_PageDirectoryObject, seL4_PageBits);
+    if (err) {
+        return err;
+    }
+
+    return seL4_ARM_PageDirectory_Map(empty, vspace, vaddr, seL4_ARM_Default_VMAttributes);
+}
+
+/**
+ * Retypes and maps a page upper directory into the root servers page global directory
+ * @param cspace that the cptrs refer to
+ * @param vaddr  the virtual address of the mapping
+ * @param ut     a 4k untyped object
+ * @param empty  an empty slot to retype into a pud
+ * @return 0 on success
+ */
+static seL4_Error retype_map_pud(cspace_t *cspace, seL4_CPtr vspace, seL4_Word vaddr, seL4_CPtr ut,
+                                 seL4_CPtr empty)
+{
+
+    seL4_Error err = cspace_untyped_retype(cspace, ut, empty, seL4_ARM_PageUpperDirectoryObject, seL4_PageBits);
+    if (err) {
+        return err;
+    }
+    return seL4_ARM_PageUpperDirectory_Map(empty, vspace, vaddr, seL4_ARM_Default_VMAttributes);
+}
+
+static seL4_Error map_frame_impl(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
+                                 seL4_CapRights_t rights, seL4_ARM_VMAttributes attr,
+                                 seL4_CPtr *free_slots, seL4_Word *used)
+{
     /* Attempt the mapping */
-    err = seL4_ARM_Page_Map(frame_cap, pd, vaddr, rights, attr);
-    if(err == seL4_FailedLookup){
-        /* Assume the error was because we have no page table */
-        err = _map_page_table(pd, vaddr);
-        if(!err){
+    seL4_Error err = seL4_ARM_Page_Map(frame_cap, vspace, vaddr, rights, attr);
+    for (size_t i = 0; i < MAPPING_SLOTS && err == seL4_FailedLookup; i++) {
+        /* save this so nothing else trashes the message register value */
+        seL4_Word failed = seL4_MappingFailedLookupLevel();
+
+        /* Assume the error was because we are missing a paging structure */
+        ut_t *ut = ut_alloc_4k_untyped(NULL);
+        if (ut == NULL) {
+            ZF_LOGE("Out of 4k untyped");
+            return -1;
+        }
+
+        /* figure out which cptr to use to retype into*/
+        seL4_CPtr slot;
+        if (cspace == NULL) {
+            slot = free_slots[i];
+            *used |= BIT(i);
+        } else {
+            slot = cspace_alloc_slot(cspace);
+        }
+
+        if (slot == seL4_CapNull) {
+            ZF_LOGE("No cptr to alloc paging structure");
+            return -1;
+        }
+
+        switch (failed) {
+        case SEL4_MAPPING_LOOKUP_NO_PT:
+            err = retype_map_pt(cspace, vspace, vaddr, ut->cap, slot);
+            break;
+        case SEL4_MAPPING_LOOKUP_NO_PD:
+            err = retype_map_pd(cspace, vspace, vaddr, ut->cap, slot);
+            break;
+
+        case SEL4_MAPPING_LOOKUP_NO_PUD:
+            err = retype_map_pud(cspace, vspace, vaddr, ut->cap, slot);
+            break;
+        }
+
+        if (!err) {
             /* Try the mapping again */
-            err = seL4_ARM_Page_Map(frame_cap, pd, vaddr, rights, attr);
+            err = seL4_ARM_Page_Map(frame_cap, vspace, vaddr, rights, attr);
         }
     }
 
     return err;
 }
 
-void* 
-map_device(void* paddr, int size){
-    static seL4_Word virt = DEVICE_START;
-    seL4_Word phys = (seL4_Word)paddr;
-    seL4_Word vstart = virt;
-
-    dprintf(1, "Mapping device memory 0x%x -> 0x%x (0x%x bytes)\n",
-                phys, vstart, size);
-    while(virt - vstart < size){
-        seL4_Error err;
-        seL4_ARM_Page frame_cap;
-        /* Retype the untype to a frame */
-        err = cspace_ut_retype_addr(phys,
-                                    seL4_ARM_SmallPageObject,
-                                    seL4_PageBits,
-                                    cur_cspace,
-                                    &frame_cap);
-        conditional_panic(err, "Unable to retype device memory");
-        /* Map in the page */
-        err = map_page(frame_cap, 
-                       seL4_CapInitThreadPD, 
-                       virt, 
-                       seL4_AllRights,
-                       0);
-        conditional_panic(err, "Unable to map device");
-        /* Next address */
-        phys += (1 << seL4_PageBits);
-        virt += (1 << seL4_PageBits);
+seL4_Error map_frame_cspace(seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
+                            seL4_CapRights_t rights, seL4_ARM_VMAttributes attr,
+                            seL4_CPtr free_slots[MAPPING_SLOTS], seL4_Word *used)
+{
+    if (used == NULL || free_slots == NULL) {
+        ZF_LOGE("Invalid arguments");
+        return -1;
     }
-    return (void*)vstart;
+    return map_frame_impl(NULL, frame_cap, vspace, vaddr, rights, attr, free_slots, used);
 }
 
-
+seL4_Error map_frame(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
+                     seL4_CapRights_t rights, seL4_ARM_VMAttributes attr)
+{
+    return map_frame_impl(cspace, frame_cap, vspace, vaddr, rights, attr, NULL, NULL);
+}
