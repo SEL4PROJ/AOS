@@ -14,6 +14,8 @@
 #include <string.h>
 
 #include <cspace/cspace.h>
+#include <aos/sel4_zf_logif.h>
+#include <aos/debug.h>
 
 #include <cpio/cpio.h>
 #include <nfs/nfs.h>

@@ -21,7 +21,7 @@
 #include <autoconf.h>
 #include <utils/util.h>
 #include <cspace/cspace.h>
-#include <cspace/sel4_zf_logif.h>
+#include <aos/sel4_zf_logif.h>
 
 #include "mapping.h"
 #include "bootstrap.h"
