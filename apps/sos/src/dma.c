@@ -1,18 +1,21 @@
 /*
- * Copyright 2014, NICTA
+ * Copyright 2018, Data61
+ * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ * ABN 41 687 119 230.
  *
  * This software may be distributed and modified according to the terms of
  * the BSD 2-Clause license. Note that NO WARRANTY is provided.
  * See "LICENSE_BSD2.txt" for details.
  *
- * @TAG(NICTA_BSD)
+ * @TAG(DATA61_BSD)
  */
-
 /**
  * This file implements very simple DMA for sos.
  *
- * It does not free and only keeps a memory pool
- * big enough to get the network drivers booted.
+ * It uses the ut allocator to allocate a contiguous set of untypeds
+ * at unitialisation, then retypes and maps frames on demand.
+ *
+ * It does not free.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,123 +24,165 @@
 
 #include <sel4/types.h>
 #include <cspace/cspace.h>
-#include <dma.h>
-#include <mapping.h>
-#include <ut_manager/ut.h>
-#include <vmem_layout.h>
-
-#define verbose 5
-#include <sys/debug.h>
-#include <sys/panic.h>
-
-#define DMA_SIZE     (_dma_pend - _dma_pstart)
-#define DMA_PAGES    (DMA_SIZE >> seL4_PageBits)
-
-#define PHYS(vaddr)  ((vaddr) - DMA_VSTART + _dma_pstart)
-#define VIRT(paddr)  ((paddr) + DMA_VSTART - _dma_pstart)
-
-#define PAGE_OFFSET(a) ((a) & ((1 << seL4_PageBits) - 1))
+#include "dma.h"
+#include "mapping.h"
+#include "ut.h"
+#include "vmem_layout.h"
 
 #define DMA_ALIGN_BITS  7 /* 128 */
-#define DMA_ALIGN(a)    ROUND_UP(a,DMA_ALIGN_BITS)
+#define DMA_ALIGN(a)    ROUND_UP((a), DMA_ALIGN_BITS)
 
-static seL4_CPtr* _dma_caps;
+typedef struct {
+    /* the first physical address */
+    uintptr_t pstart;
+    /* the next available physical address */
+    uintptr_t pnext;
+    /* the last available physical address */
+    uintptr_t pend;
+    /* the last mapped paddr */
+    uintptr_t last_mapped;
+    /* was the last allocation cached or not */
+    bool cached;
+    /* a ut cptr, sufficient to allocate   */
+    seL4_CPtr cap;
+    /* a cspace for allocating slots */
+    cspace_t *cspace;
+    /* vspace for mapping */
+    seL4_CPtr vspace;
+} dma_t;
 
-static seL4_Word _dma_pstart = 0;
-static seL4_Word _dma_pend = 0;
-static seL4_Word _dma_pnext = 0;
+/* global dma data structure */
+static dma_t dma;
 
-static inline void
-_dma_fill(seL4_Word pstart, seL4_Word pend, int cached){
-    seL4_CPtr* caps = &_dma_caps[(pstart - _dma_pstart) >> seL4_PageBits];
+static inline uintptr_t phys_to_virt(uintptr_t phys)
+{
+    return SOS_DMA_VSTART + (phys - dma.pstart);
+}
+
+static inline uintptr_t virt_to_phys(uintptr_t vaddr)
+{
+    return dma.pstart + (vaddr - SOS_DMA_VSTART);
+}
+
+/* ensure a region of dma is mapped */
+static void* dma_fill(uintptr_t pstart, uintptr_t pend, bool cached)
+{
+
     seL4_ARM_VMAttributes vm_attr = 0;
-    int err;
-
-    if(cached){
+    if (cached) {
         vm_attr = seL4_ARM_Default_VMAttributes;
-        vm_attr = 0 /* TODO L2CC currently not controlled by kernel */;
     }
 
-    pstart -= PAGE_OFFSET(pstart);
-    while(pstart < pend){
-        if(*caps == seL4_CapNull){
-            /* Create the frame cap */
-            err = cspace_ut_retype_addr(pstart, seL4_ARM_SmallPageObject,
-                                        seL4_PageBits, cur_cspace, caps);
-            assert(!err);
-            /* Map in the frame */
-            err = map_page(*caps, seL4_CapInitThreadPD, VIRT(pstart), 
-                           seL4_AllRights, vm_attr);
-            assert(!err);
+    void *result = (void *) phys_to_virt(pstart);
+    for (uintptr_t paddr = ALIGN_DOWN(pstart, PAGE_SIZE_4K); paddr < pend; paddr += PAGE_SIZE_4K) {
+        if (paddr > dma.last_mapped) {
+            /* allocate a slot to retype into */
+            seL4_CPtr slot = cspace_alloc_slot(dma.cspace);
+            if (slot == seL4_CapNull) {
+                ZF_LOGE("Failed to alloc slot");
+                return NULL;
+            }
+            /* now do the retype */
+            seL4_Error err = cspace_untyped_retype(dma.cspace, dma.cap, slot,
+                                                   seL4_ARM_SmallPageObject, seL4_PageBits);
+            if (err) {
+                ZF_LOGE("Failed to retype");
+                cspace_free_slot(dma.cspace, slot);
+                return NULL;
+            }
+
+            /* now map the frame */
+            uintptr_t vaddr = phys_to_virt(paddr);
+            int error = map_frame(dma.cspace, slot, dma.vspace, vaddr, seL4_AllRights, vm_attr);
+            if (error) {
+                ZF_LOGE("Failed to map page at %p\n", (void *) vaddr);
+                cspace_delete(dma.cspace, slot);
+                cspace_free_slot(dma.cspace, slot);
+                return NULL;
+            }
+            dma.last_mapped = paddr;
+            dma.cached = cached;
         }
-        /* Next */
-        pstart += (1 << seL4_PageBits);
-        caps++;
     }
+
+    return result;
 }
 
 
-int 
-dma_init(seL4_Word dma_paddr_start, int sizebits){
-    assert(_dma_pstart == 0);
+int dma_init(cspace_t *cspace, size_t sizebits, seL4_CPtr vspace, seL4_CPtr ut, uintptr_t pstart)
+{
+    if (sizebits < seL4_PageBits) {
+        ZF_LOGE("Size bits %zu invalid, minimum %zu\n", sizebits, (size_t) seL4_PageBits);
+        return -1;
+    }
 
-    _dma_pstart = _dma_pnext = dma_paddr_start;
-    _dma_pend = dma_paddr_start + (1 << sizebits);
-    _dma_caps = (seL4_CPtr*)malloc(sizeof(seL4_CPtr) * DMA_PAGES);
-    conditional_panic(!_dma_caps, "Not enough heap space for dma frame caps");
+    if (ut == seL4_CapNull || vspace == seL4_CapNull || cspace == NULL || pstart == 0) {
+        return -1;
+    }
 
-    memset(_dma_caps, 0, sizeof(seL4_CPtr) * DMA_PAGES);
+    dma.pend = dma.pstart + BIT(sizebits);
+    dma.pnext = dma.pstart;
+    dma.cspace = cspace;
+    dma.last_mapped = 0;
+    dma.vspace = vspace;
+    dma.cap = ut;
+
     return 0;
 }
 
+void *sos_dma_malloc(UNUSED void *cookie, size_t size, int align, int cached, UNUSED ps_mem_flags_t flags)
+{
+    dma.pnext = DMA_ALIGN(dma.pnext);
 
-void *
-sos_dma_malloc(void* cookie, size_t size, int align, int cached, ps_mem_flags_t flags) {
-    static int alloc_cached = 0;
-    void *dma_addr;
-    (void)cookie;
-
-    assert(_dma_pstart);
-    _dma_pnext = DMA_ALIGN(_dma_pnext);
-    if(_dma_pnext < _dma_pend){
-        /* If caching policy has changed we round to page boundary */
-        if(alloc_cached != cached && PAGE_OFFSET(_dma_pnext) != 0){
-            _dma_pnext = ROUND_UP(_dma_pnext, BIT(seL4_PageBits));
-        }
-        /* Round up to the alignment */
-        _dma_pnext = ROUND_UP(_dma_pnext, align);
-        alloc_cached = cached;
-        /* Fill the dma memory */
-        _dma_fill(_dma_pnext, _dma_pnext + size, cached);
-        /* set return values */
-        dma_addr = (void*)VIRT(_dma_pnext);
-        _dma_pnext += size;
-    }else{
-        dma_addr = NULL;
+    /* If caching policy has changed we round to page boundary */
+    if (dma.pnext != dma.pstart && (dma.cached != cached && dma.pnext % PAGE_SIZE_4K != 0)) {
+        dma.pnext = ROUND_UP(dma.pnext, BIT(seL4_PageBits));
     }
-    dprintf(5, "DMA: 0x%x\n", (uint32_t)dma_addr);
+
+    /* Round up to the alignment */
+    dma.pnext = ROUND_UP(dma.pnext, align);
+
+    if (dma.pnext + size >= dma.pend) {
+        ZF_LOGE("Out of 4k untypeds for DMA");
+        return NULL;
+    }
+
+    void *vaddr = dma_fill(dma.pnext, dma.pnext + size, cached);
+    if (vaddr == NULL) {
+        ZF_LOGE("Failed to complete dma allocation");
+        return NULL;
+    }
+
+    /* set return values */
+    dma.pnext += size;
+    ZF_LOGV("DMA: 0x%x\n", (uintptr_t) vaddr);
+
     /* Clean invalidate the range to prevent seL4 cache bombs */
-    sos_dma_cache_op(NULL, dma_addr, size, DMA_CACHE_OP_CLEAN_INVALIDATE);
-    return dma_addr;
+    sos_dma_cache_op(NULL, vaddr, size, DMA_CACHE_OP_CLEAN_INVALIDATE);
+    return vaddr;
 }
 
-void sos_dma_free(void *cookie, void *addr, size_t size) {
+void sos_dma_free(UNUSED void *cookie, UNUSED void *addr, UNUSED size_t size)
+{
     /* do not support free */
 }
 
-uintptr_t sos_dma_pin(void *cookie, void *addr, size_t size) {
-    if ((uintptr_t)addr < DMA_VSTART || (uintptr_t)addr >= DMA_VEND) {
+uintptr_t sos_dma_pin(UNUSED void *cookie, void *addr, UNUSED size_t size)
+{
+    if ((uintptr_t)addr < SOS_DMA_VSTART || (uintptr_t)addr >= SOS_DMA_VEND) {
+        ZF_LOGE("Attempted to pin memory out of DMA range!");
         return 0;
     } else {
-        return PHYS((uintptr_t)addr);
+        return virt_to_phys((uintptr_t)addr);
     }
 }
 
-void sos_dma_unpin(void *cookie, void *addr, size_t size) {
+void sos_dma_unpin(UNUSED void *cookie, UNUSED void *addr, UNUSED size_t size)
+{
     /* no op */
 }
 
-typedef int (*sel4_cache_op_fn_t)(seL4_ARM_PageDirectory, seL4_Word, seL4_Word);
+typedef seL4_Error (*sel4_cache_op_fn_t)(seL4_ARM_PageGlobalDirectory, seL4_Word, seL4_Word);
 
 static void
 cache_foreach(void *vaddr, int range, sel4_cache_op_fn_t proc)
@@ -152,17 +197,18 @@ cache_foreach(void *vaddr, int range, sel4_cache_op_fn_t proc)
     }
 }
 
-void sos_dma_cache_op(void *cookie, void *addr, size_t size, dma_cache_op_t op) {
+void sos_dma_cache_op(UNUSED void *cookie, void *addr, size_t size, dma_cache_op_t op)
+{
     /* everything is mapped uncached at the moment */
-    switch(op) {
+    switch (op) {
     case DMA_CACHE_OP_CLEAN:
-        cache_foreach(addr, size, seL4_ARM_PageDirectory_Clean_Data);
+        cache_foreach(addr, size, seL4_ARM_PageGlobalDirectory_Clean_Data);
         break;
     case DMA_CACHE_OP_INVALIDATE:
-        cache_foreach(addr, size, seL4_ARM_PageDirectory_Invalidate_Data);
+        cache_foreach(addr, size, seL4_ARM_PageGlobalDirectory_Invalidate_Data);
         break;
     case DMA_CACHE_OP_CLEAN_INVALIDATE:
-        cache_foreach(addr, size, seL4_ARM_PageDirectory_CleanInvalidate_Data);
+        cache_foreach(addr, size, seL4_ARM_PageGlobalDirectory_CleanInvalidate_Data);
         break;
     }
 }
