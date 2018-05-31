@@ -59,16 +59,27 @@ _Static_assert(MAX_BUF_SIZE >= MIN_BUF_SIZE, "min buf size smaller than or eq to
 #define CCNT_64     BIT(3u)
 #define CCNT_RESET  BIT(2u)
 #define CCNT_ENABLE BIT(0u)
-#define PMCNTENSET BIT(31u)
+#define CCNT_START  BIT(31u)
 
 /* max size for output lines in results.tsv */
 #define LINE_SIZE 200
 
-#define READ_CCNT(var) do { \
-    asm volatile("mrc p15, 0, %0, c9, c13, 0\n" \
-        : "=r"(var) \
-    ); \
-} while(0)
+#define PMU_WRITE(reg, v)                      \
+    do {                                       \
+        seL4_Word _v = v;                         \
+        asm volatile("msr  " reg ", %0" :: "r" (_v)); \
+}while(0)
+
+#define PMU_READ(reg, v) asm volatile("mrs %0, " reg :  "=r"(v))
+
+#define PMCCNTR     "PMCCNTR_EL0"
+#define PMCNTENSET  "PMCNTENSET_EL0"
+#define PMCR        "PMCR_EL0"
+
+#define READ_CCNT(var) PMU_READ(PMCCNTR, var)
+#define READ_PMCR(var) PMU_READ(PMCR, var)
+
+#define WRITE_PMCR(var) PMU_WRITE(PMCR, var)
 
 /* amount of loops to do for each benchmark */
 #define LOOPS (TOTAL_FILE_SIZE/BIT(MAX_BUF_SIZE))
@@ -77,46 +88,23 @@ static char buf[TOTAL_FILE_SIZE];
 
 typedef int (*benchmark_fn_t)(int fd, char *buf, size_t nbyte);
 
-static inline uint32_t read_pmcr(void)
+static void init_ccnt(void)
 {
+    /* set up cycle counter */
     uint32_t pmcr;
-    /* read the pmcr */
-    asm volatile (
-        "mrc p15, 0, %0, c9, c12, 0\n"
-        : "=r" (pmcr)
-    );
-    return pmcr;
+    READ_PMCR(pmcr);
+    pmcr |= (CCNT_RESET | CCNT_ENABLE | CCNT_64);
+    WRITE_PMCR(pmcr);
+
+    /* start it counting */
+    uint32_t pmcntset = CCNT_START;
+    PMU_WRITE(PMCNTENSET, pmcntset);
 }
 
-static void init_ccnt(void *arg) {
-
-    uint32_t pmcr = read_pmcr();
-    asm volatile (
-        // allow ccnt to be read from user level
-        "mcr p15, 0,  %0, c9, c14, 0\n"
-        //turn off overflow interrupts
-        "mcr p15, 0, %1, c9, c14, 2\n"
-        // set the cycle count to tick every 64 bits so it doesn't overflow
-        // also enable it and reset to 0
-        "mcr p15, 0, %2, c9, c12, 0\n"
-        //enable the cycle counter
-        "mcr p15, 0, %3, c9, c12, 1\n"
-        : /* no outputs */
-     : "r" (1),
-       "r" (-1),
-       "r" (pmcr | CCNT_RESET | CCNT_ENABLE | CCNT_64),
-       "r" (PMCNTENSET)
-     : /* no clobber */
-    );
-}
-
-static void reset_ccnt(uint32_t pmcr) {
-    asm volatile (
-        "mcr p15, 0, %0, c9, c12, 0\n"
-        : /* no outputs */
-        : "r" (pmcr | CCNT_RESET)
-        : /* no clobber */
-    );
+static void reset_ccnt(uint32_t pmcr)
+{
+    pmcr |= CCNT_RESET;
+    WRITE_PMCR(pmcr);
 }
 
 void sos_fprintf(int fd, const char *format, ...)
@@ -141,10 +129,11 @@ static int open_helper(char *name, fmode_t mode)
 }
 
 static int run_benchmark(char *name, benchmark_fn_t fn, uint32_t overhead,
-                  int results_fd, int debug_mode)
+                         int results_fd, int debug_mode)
 {
     uint32_t results[N_RESULTS];
-    uint32_t pmcr = read_pmcr();
+    uint32_t pmcr;
+    READ_PMCR(pmcr);
 
     /* open the file */
     int fd = open_helper(BENCHMARK_FILE, O_RDWR);
@@ -174,11 +163,11 @@ static int run_benchmark(char *name, benchmark_fn_t fn, uint32_t overhead,
                 assert(j * sz < sz * LOOPS);
                 int res = fn(fd, &buf[j * sz], sz);
 
-                if(debug_mode){
+                if (debug_mode) {
                     /* check we read/wrote the amount we asked to */
                     if (res != sz) {
-                        printf("benchmark_fn did not %s full buf size, only %u/%u\n",
-                                name, res, sz);
+                        printf("benchmark_fn did not %s full buf size, only %d/%zu\n",
+                               name, res, sz);
                         sos_sys_close(fd);
                         return -1;
                     }
@@ -245,14 +234,7 @@ static uint32_t find_overhead(void)
 
 int sos_benchmark(int debug_mode)
 {
-    /* allow the cycle counter to be read from user level */
-#ifndef CONFIG_DANGEROUS_CODE_INJECTION
-    /* if this fails, you need to make menuconfig and select
-     * 'Build Options' -> 'Build kernel with support for executing arbitrary code in protected mode'
-     * This allows us to configurethe cycle counter to be read from user level */
-#error "Cannot read cycle count without DANGEROUS_CODE_INJECTION enabled!"
-#endif
-    seL4_DebugRun(init_ccnt, NULL);
+    init_ccnt();
 
     /* find overhead of measuring cycle counter */
     uint32_t overhead = find_overhead();
@@ -265,9 +247,9 @@ int sos_benchmark(int debug_mode)
     }
 
     sos_fprintf(results_fd, "[");
-     /* benchmark write */
+    /* benchmark write */
     int res = run_benchmark("sos_sys_write", (benchmark_fn_t) sos_sys_write,
-                        overhead, results_fd, debug_mode);
+                            overhead, results_fd, debug_mode);
 
     if (res == -1) {
         sos_sys_close(results_fd);
