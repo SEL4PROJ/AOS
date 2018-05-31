@@ -1,13 +1,14 @@
 /*
- * Copyright 2014, NICTA
+ * Copyright 2018, Data61
+ * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ * ABN 41 687 119 230.
  *
  * This software may be distributed and modified according to the terms of
  * the BSD 2-Clause license. Note that NO WARRANTY is provided.
  * See "LICENSE_BSD2.txt" for details.
  *
- * @TAG(NICTA_BSD)
+ * @TAG(DATA61_BSD)
  */
-
 /* Simple operating system interface */
 
 #ifndef _SOS_H
@@ -41,20 +42,20 @@ typedef int st_type_t;
 
 
 typedef struct {
-  st_type_t st_type;    /* file type */
-  fmode_t   st_fmode;   /* access mode */
-  unsigned  st_size;    /* file size in bytes */
-  long      st_ctime;   /* Unix file creation time (ms) */
-  long      st_atime;   /* Unix file last access (open) time (ms) */
+    st_type_t st_type;    /* file type */
+    fmode_t   st_fmode;   /* access mode */
+    unsigned  st_size;    /* file size in bytes */
+    long      st_ctime;   /* Unix file creation time (ms) */
+    long      st_atime;   /* Unix file last access (open) time (ms) */
 } sos_stat_t;
 
 typedef int pid_t;
 
 typedef struct {
-  pid_t     pid;
-  unsigned  size;            /* in pages */
-  unsigned  stime;           /* start time in msec since booting */
-  char      command[N_NAME]; /* Name of exectuable */
+    pid_t     pid;
+    unsigned  size;            /* in pages */
+    unsigned  stime;           /* start time in msec since booting */
+    char      command[N_NAME]; /* Name of exectuable */
 } sos_process_t;
 
 /* I/O system calls */
