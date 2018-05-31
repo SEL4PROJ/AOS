@@ -23,13 +23,13 @@
 #include <serial/serial.h>
 
 #include "network.h"
-#include "elf.h"
 
 #include "ut_manager/ut.h"
 #include "vmem_layout.h"
 #include "mapping.h"
 
 #include <autoconf.h>
+#include <elfload.h>
 
 #define verbose 5
 #include <sys/debug.h>
