@@ -86,13 +86,6 @@ sys_writev(va_list ap)
     return ret;
 }
 
-long sys_readv(va_list ap)
-{
-    /* rootserver cannot read input */
-    assert(!"not implemented");
-    return 0;
-}
-
 long sys_read(va_list ap)
 {
     int fd = va_arg(ap, int);
@@ -114,20 +107,6 @@ sys_ioctl(va_list ap)
     if (fd == STDOUT_FD) {
         return 0;
     }
-    assert(!"not implemented");
-    return 0;
-}
-
-long
-sys_open(va_list ap)
-{
-    assert(!"not implemented");
-    return 0;
-}
-
-long
-sys_close(va_list ap)
-{
     assert(!"not implemented");
     return 0;
 }
