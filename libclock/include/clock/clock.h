@@ -1,16 +1,18 @@
 /*
- * Copyright 2014, NICTA
+ * Copyright 2018, Data61
+ * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ * ABN 41 687 119 230.
  *
  * This software may be distributed and modified according to the terms of
  * the BSD 2-Clause license. Note that NO WARRANTY is provided.
  * See "LICENSE_BSD2.txt" for details.
  *
- * @TAG(NICTA_BSD)
+ * @TAG(DATA61_BSD)
  */
 
-#ifndef _CLOCK_H_
-#define _CLOCK_H_
+#pragma once
 
+#include <stdint.h>
 #include <sel4/sel4.h>
 
 /*
@@ -21,7 +23,7 @@
 #define CLOCK_R_CNCL (-2)       /* operation cancelled (driver stopped) */
 #define CLOCK_R_FAIL (-3)       /* operation failed for other reason */
 
-typedef int64_t timestamp_t;
+typedef uint64_t timestamp_t;
 typedef void (*timer_callback_t)(uint32_t id, void *data);
 
 
@@ -32,7 +34,7 @@ typedef void (*timer_callback_t)(uint32_t id, void *data);
  *
  * Returns CLOCK_R_OK iff successful.
  */
-int start_timer(seL4_CPtr interrupt_ep);
+int start_timer(seL4_CPtr ntfn, seL4_CPtr irqhandler, void *device_vaddr);
 
 /*
  * Register a callback to be called after a given delay
@@ -61,7 +63,7 @@ int timer_interrupt(void);
 /*
  * Returns present time in microseconds since booting.
  *
- * Returns a negative value if failure.
+ * Returns 0 on failure.
  */
 timestamp_t time_stamp(void);
 
@@ -71,5 +73,3 @@ timestamp_t time_stamp(void);
  * Returns CLOCK_R_OK iff successful.
  */
 int stop_timer(void);
-
-#endif /* _CLOCK_H_ */

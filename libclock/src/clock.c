@@ -12,7 +12,7 @@
 #include <clock/clock.h>
 
 
-int start_timer(seL4_CPtr interrupt_ntfn)
+int start_timer(seL4_CPtr ntfn, seL4_CPtr irqhandler, void *device_vaddr)
 {
     return CLOCK_R_FAIL;
 }

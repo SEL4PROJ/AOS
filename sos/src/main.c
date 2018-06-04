@@ -18,6 +18,7 @@
 #include <aos/sel4_zf_logif.h>
 #include <aos/debug.h>
 
+#include <clock/clock.h>
 #include <cpio/cpio.h>
 #include <nfs/nfs.h>
 #include <elf/elf.h>
