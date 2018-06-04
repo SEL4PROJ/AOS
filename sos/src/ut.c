@@ -54,7 +54,7 @@ void ut_init(void *memory, ut_region_t region)
 {
     /* the memory is already 0'd, as its just been allocated from raw untyped */
     table.untypeds = memory;
-    memset(table.free_untypeds, 0, ARRAY_SIZE(table.free_untypeds));
+    memset(table.free_untypeds, 0, ARRAY_SIZE(table.free_untypeds) * sizeof(ut_t *));
     table.first_paddr = region.start;
 }
 
