@@ -28,17 +28,17 @@
 #include <utils/util.h>
 #include <stdint.h>
 #include <sel4/sel4.h>
-#include <sel4debug/strerror.h>
+#include <aos/strerror.h>
 #include <stdlib.h>
 #include <cspace/bitfield.h>
 
 /* the cspace needs to keep a set of free slots to ensure it can allocate further structures
  * when we run out of 2nd level cnodes. 3 for potential mapping structures, 1 for a bookkeeping frame */
-#define MAPPING_SLOTS 3
+#define MAPPING_SLOTS 3u
 #define WATERMARK_SLOTS (MAPPING_SLOTS + 1)
 
 /* All cnodes created by this library are exactly this size, where size = 2^size_bits */
-#define CNODE_SIZE_BITS 12
+#define CNODE_SIZE_BITS 12u
 /* convert from size bits in memory, to number of slots in size_bits, where the number of slots is 2^n */
 #define CNODE_SLOT_BITS(x) (x - seL4_SlotBits)
 /* convert from cnode size bits to number of slots */

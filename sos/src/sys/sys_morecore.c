@@ -15,6 +15,7 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <assert.h>
+#include <utils/util.h>
 
 /*
  * Statically allocated morecore area.
@@ -55,32 +56,22 @@ long sys_brk(va_list ap)
 
 long sys_mmap(va_list ap)
 {
-    void *addr = va_arg(ap, void*);
+    UNUSED void *addr = va_arg(ap, void*);
     size_t length = va_arg(ap, size_t);
-    int prot = va_arg(ap, int);
+    UNUSED int prot = va_arg(ap, int);
     int flags = va_arg(ap, int);
-    int fd = va_arg(ap, int);
-    off_t offset = va_arg(ap, off_t);
-    (void)addr;
-    (void)prot;
-    (void)fd;
-    (void)offset;
+    UNUSED int fd = va_arg(ap, int);
+    UNUSED off_t offset = va_arg(ap, off_t);
+
     if (flags & MAP_ANONYMOUS) {
-        /* Steal from the top */
-        uintptr_t base = morecore_top - length;
-        if (base < morecore_base) {
+        /* Check that we don't try and allocate more than exists */
+        if (length > morecore_top - morecore_base) {
             return -ENOMEM;
         }
-        morecore_top = base;
-        return base;
+        /* Steal from the top */
+        morecore_top -= length;
+        return morecore_top;
     }
-    assert(!"not implemented");
-    return -ENOMEM;
-}
-
-long
-sys_mremap(va_list ap)
-{
-    assert(!"not implemented");
+    ZF_LOGF("not implemented");
     return -ENOMEM;
 }

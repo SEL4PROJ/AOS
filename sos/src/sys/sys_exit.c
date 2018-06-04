@@ -29,7 +29,7 @@ static void sel4_abort(void)
         printf("Backtracing stack PCs:  ");
 
         for (int i = 0; i < size; i++) {
-            printf("0x%x  ", (unsigned int)array[i]);
+            printf("0x%p  ", array[i]);
         }
         printf("\n");
     }
@@ -51,28 +51,28 @@ sys_exit(UNUSED va_list ap)
 long
 sys_rt_sigprocmask(UNUSED va_list ap)
 {
-    printf("Ignoring call to %s\n", __FUNCTION__);
+    ZF_LOGV("Ignoring call to %s\n", __FUNCTION__);
     return 0;
 }
 
 long
 sys_gettid(UNUSED va_list ap)
 {
-    printf("Ignoring call to %s\n", __FUNCTION__);
+    ZF_LOGV("Ignoring call to %s\n", __FUNCTION__);
     return 0;
 }
 
 long
 sys_getpid(UNUSED va_list ap)
 {
-    printf("Ignoring call to %s\n", __FUNCTION__);
+    ZF_LOGV("Ignoring call to %s\n", __FUNCTION__);
     return 0;
 }
 
 long
 sys_tgkill(UNUSED va_list ap)
 {
-    printf("%s assuming self kill\n", __FUNCTION__);
+    ZF_LOGV("%s assuming self kill\n", __FUNCTION__);
     sel4_abort();
     return 0;
 }

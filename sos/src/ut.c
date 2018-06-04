@@ -122,7 +122,7 @@ static bool ensure_new_structures(cspace_t *cspace)
         }
 
         /* now add all the new uts structures to the free list */
-        for (int i = 0; i < PAGE_SIZE_4K / sizeof(ut_t); i++) {
+        for (size_t i = 0; i < PAGE_SIZE_4K / sizeof(ut_t); i++) {
             push(&table.free_structures, &new_uts[i]);
         }
     }

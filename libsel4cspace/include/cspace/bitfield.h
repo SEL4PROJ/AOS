@@ -42,7 +42,7 @@ static inline bool bf_get_bit(unsigned long *bits, unsigned long bit)
 static inline unsigned long bf_first_free(size_t words, unsigned long bits[words])
 {
     /* find the first free word */
-    int i = 0;
+    unsigned int i = 0;
     for (; i < words && bits[i] == ULONG_MAX; i++);
 
     unsigned long bit = i * WORD_BITS;

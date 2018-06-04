@@ -31,8 +31,9 @@
 #define STDOUT_FD 1
 #define STDERR_FD 2
 
-static size_t sel4_write(void *data, size_t count) {
-#ifdef SEL4_DEBUG_KERNEL
+static size_t sel4_write(void *data, size_t count)
+{
+#if CONFIG_DEBUG_BUILD
     size_t i;
     char *realdata = data;
     for (i = 0; i < count; i++) {

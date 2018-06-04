@@ -30,7 +30,7 @@
 #include "vmem_layout.h"
 
 /* top level cspace node size, for the root cnode, in bits, where size = 2^bits */
-#define INITIAL_TASK_CNODE_SIZE_BITS 14
+#define INITIAL_TASK_CNODE_SIZE_BITS 14u
 
 /* extra cspace info for the initial bootstrapped cspace */
 typedef struct {
@@ -54,7 +54,7 @@ static size_t boot_info_avail_bytes[CONFIG_MAX_NUM_BOOTINFO_UNTYPED_CAPS];
 static size_t calculate_ut_caps(const seL4_BootInfo *bi, size_t size_bits)
 {
     size_t n_caps = 0;
-    for (int i = 0; i < bi->untyped.end - bi->untyped.start; i++) {
+    for (size_t i = 0; i < bi->untyped.end - bi->untyped.start; i++) {
         boot_info_avail_bytes[i] = BIT(bi->untypedList[i].sizeBits);
         if (bi->untypedList[i].sizeBits >= size_bits) {
             n_caps += BIT(bi->untypedList[i].sizeBits - size_bits);
@@ -83,7 +83,7 @@ static seL4_CPtr steal_untyped(const seL4_BootInfo *bi, size_t size_bits, uintpt
     assert(size_bits <= seL4_MaxUntypedBits);
 
     ZF_LOGD("looking for untyped %zu in size", size_bits);
-    for (int i = 0; i < bi->untyped.end - bi->untyped.start; i++) {
+    for (size_t i = 0; i < bi->untyped.end - bi->untyped.start; i++) {
         if (boot_info_avail_bytes[i] >= BIT(size_bits)) {
             if (paddr) {
                 *paddr = paddr_from_avail_bytes(bi, i, size_bits);
@@ -104,7 +104,7 @@ static ut_region_t find_memory_bounds(const seL4_BootInfo *bi)
         .end = 0 /* lowest possible physical address */
     };
 
-    for (int i = 0; i <  bi->untyped.end - bi->untyped.start; i++) {
+    for (size_t i = 0; i <  bi->untyped.end - bi->untyped.start; i++) {
         memory.start = MIN(memory.start, bi->untypedList[i].paddr);
         seL4_Word end = bi->untypedList[i].paddr + BIT(bi->untypedList[i].sizeBits);
         memory.end = MAX(end, memory.end);
@@ -115,7 +115,7 @@ static ut_region_t find_memory_bounds(const seL4_BootInfo *bi)
     return memory;
 }
 
-static inline void *alloc_vaddr(bootstrap_cspace_t *cspace, int err)
+static inline void *alloc_vaddr(int err)
 {
     void *res = NULL;
     if (!err) {
@@ -129,7 +129,7 @@ void *bootstrap_map_frame(cspace_t *cspace, seL4_CPtr cap)
 {
     int err = map_frame(cspace, cap, bootstrap_data.vspace, bootstrap_data.next_free_vaddr,
                         seL4_AllRights, seL4_ARM_Default_VMAttributes);
-    return alloc_vaddr(&bootstrap_data, err);
+    return alloc_vaddr(err);
 }
 
 /* cspace allocation functions for the bootstrapped cspace */
@@ -138,18 +138,18 @@ void *cspace_map_frame(UNUSED void *cookie, seL4_CPtr cap, seL4_CPtr free_slots[
 {
     seL4_Error err = map_frame_cspace(cap, bootstrap_data.vspace, bootstrap_data.next_free_vaddr,
                                       seL4_AllRights, seL4_ARM_Default_VMAttributes, free_slots, used);
-    return alloc_vaddr(&bootstrap_data, err);
+    return alloc_vaddr(err);
 }
 
 
-static void *cspace_alloc_4k_ut(void *cookie, seL4_CPtr *cap)
+static void *cspace_alloc_4k_ut(UNUSED void *cookie, seL4_CPtr *cap)
 {
     ut_t *untyped = ut_alloc_4k_untyped(NULL);
     *cap = untyped->cap;
     return untyped;
 }
 
-static void cspace_free_4k_ut(void *cookie, void *untyped)
+static void cspace_free_4k_ut(UNUSED void *cookie, void *untyped)
 {
     ut_free(untyped, seL4_PageBits);
 }
@@ -183,7 +183,7 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     size_t size = (ut_pages) * PAGE_SIZE_4K;
 
     /* account for the number of page tables we need - plus a buffer of 1 */
-    int n_pts = (ut_pages >> seL4_PageTableIndexBits) + 1;
+    size_t n_pts = (ut_pages >> seL4_PageTableIndexBits) + 1;
     size +=  (n_pts * BIT(seL4_PageTableBits));
     n_slots += n_pts;
 
@@ -203,8 +203,8 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     n_slots += calculate_ut_caps(bi, seL4_PageBits);
 
     /* now work out how many 2nd level nodes are required - with a buffer */
-    int n_cnodes = n_slots / CNODE_SLOTS(CNODE_SIZE_BITS) + 2;
-    ZF_LOGD("%zu slots needed, %d cnodes", n_slots, n_cnodes);
+    size_t n_cnodes = n_slots / CNODE_SLOTS(CNODE_SIZE_BITS) + 2;
+    ZF_LOGD("%zu slots needed, %zu cnodes", n_slots, n_cnodes);
     size += (n_cnodes * BIT(CNODE_SIZE_BITS)) + BIT(INITIAL_TASK_CNODE_SIZE_BITS);
 
     /* now we have worked out how much memory we need to set up the system -
@@ -220,13 +220,13 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     ZF_LOGF_IFERR(err, "Allocating new root cnode");
 
     /* now create the 2nd level nodes, directly in the node we just created */
-    for (int total = n_cnodes; total > 0; total -= CONFIG_RETYPE_FAN_OUT_LIMIT) {
+    size_t chunk = 0;
+    for (size_t total = n_cnodes; total > 0; total -= chunk) {
+        chunk = MIN((size_t) CONFIG_RETYPE_FAN_OUT_LIMIT, total);
         err = seL4_Untyped_Retype(ut_cptr, seL4_CapTableObject, CNODE_SLOT_BITS(CNODE_SIZE_BITS),
-                                  level1_cptr, 0, 0, n_cnodes - total, MIN(CONFIG_RETYPE_FAN_OUT_LIMIT, total));
+                                  level1_cptr, 0, 0, n_cnodes - total, chunk);
         ZF_LOGF_IFERR(err, "Failed to allocate 2nd level cnodes");
     }
-    printf("Created %d nodes", n_cnodes);
-
     seL4_Word depth = CNODE_SLOT_BITS(INITIAL_TASK_CNODE_SIZE_BITS) +
                       CNODE_SLOT_BITS(CNODE_SIZE_BITS);
 
@@ -305,7 +305,7 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     first_free_slot++;
 
     /* then the page tables */
-    for (int i = 0; i < (ut_pages >> seL4_PageTableIndexBits) + 1; i++) {
+    for (size_t i = 0; i < (ut_pages >> seL4_PageTableIndexBits) + 1; i++) {
         err = cspace_untyped_retype(cspace, ut_cptr, first_free_slot, seL4_ARM_PageTableObject, seL4_PageBits);
         ZF_LOGF_IFERR(err, "Failed to create page table");
 
@@ -321,8 +321,8 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     bootstrap_data.next_free_vaddr = SOS_UT_TABLE;
 
     /* then the pages to cover the ut table */
-    int slots_per_cnode = CNODE_SLOTS(CNODE_SIZE_BITS);
-    for (int i = 0; i < ut_pages; i++) {
+    size_t slots_per_cnode = CNODE_SLOTS(CNODE_SIZE_BITS);
+    for (size_t i = 0; i < ut_pages; i++) {
         /* allocate page */
         err = cspace_untyped_retype(cspace, ut_cptr, first_free_slot, seL4_ARM_SmallPageObject, seL4_PageBits);
         ZF_LOGF_IFERR(err, "Failed to allocate page for ut table");
@@ -348,8 +348,8 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     ut_init((void *) SOS_UT_TABLE, memory);
 
     /* create all the 4K untypeds and build the ut table, from the first available empty slot */
-    for (int i = 0; i < bi->untyped.end - bi->untyped.start; i++) {
-        int n_caps = boot_info_avail_bytes[i] / PAGE_SIZE_4K;
+    for (size_t i = 0; i < bi->untyped.end - bi->untyped.start; i++) {
+        size_t n_caps = boot_info_avail_bytes[i] / PAGE_SIZE_4K;
         seL4_Word paddr = paddr_from_avail_bytes(bi, i, seL4_PageBits);
         if (n_caps > 0) {
             ut_add_untyped_range(paddr, first_free_slot, n_caps, bi->untypedList[i].isDevice);
@@ -358,7 +358,7 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
             seL4_CPtr cnode = first_free_slot / slots_per_cnode;
 
             /* we can only retype the amount that will fit in a 2nd lvl cnode */
-            int retype = MIN(CONFIG_RETYPE_FAN_OUT_LIMIT, MIN(n_caps, slots_per_cnode - (first_free_slot % slots_per_cnode)));
+            int retype = MIN((size_t) CONFIG_RETYPE_FAN_OUT_LIMIT, MIN(n_caps, slots_per_cnode - (first_free_slot % slots_per_cnode)));
             err = seL4_Untyped_Retype(bi->untyped.start + i, seL4_UntypedObject, seL4_PageBits,
                                       seL4_CapInitThreadCNode, cnode,
                                       seL4_WordBits - CNODE_SLOT_BITS(CNODE_SIZE_BITS),
@@ -382,9 +382,9 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     };
 
     /* allocate and map enough frames to track the bottom levels nodes required */
-    int n_bot_lvl = MAX((first_free_slot / slots_per_cnode + 1), n_cnodes) / BOT_LVL_PER_NODE + 1;
-    for (int i = 0; i < n_bot_lvl; i++) {
-        ZF_LOGD("Allocating node %d for cspace book keeping", i);
+    size_t n_bot_lvl = MAX((first_free_slot / slots_per_cnode + 1), n_cnodes) / BOT_LVL_PER_NODE + 1;
+    for (size_t i = 0; i < n_bot_lvl; i++) {
+        ZF_LOGD("Allocating node %zu for cspace book keeping", i);
         seL4_Word paddr;
         ut_t *ut = ut_alloc_4k_untyped(&paddr);
         err = cspace_untyped_retype(cspace, ut->cap, first_free_slot,
@@ -415,7 +415,7 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
         bot_lvl_node_t *bot_lvl_node = cspace->bot_lvl_nodes[NODE_INDEX(i)];
         assert(bot_lvl_node != NULL);
         bot_lvl_node->n_cnodes++;
-        for (int i = 0; i < CNODE_SLOTS(CNODE_SIZE_BITS) / seL4_WordBits; i++) {
+        for (size_t i = 0; i < CNODE_SLOTS(CNODE_SIZE_BITS) / seL4_WordBits; i++) {
             bot_lvl_node->cnodes[CNODE_INDEX(i)].bf[i] = UINTPTR_MAX;
         }
         /* this cnode is full */
@@ -432,12 +432,12 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
 
     /* mark any extra cnodes we created as allocated - this occurs as we over
      * estimate when considering the initial untyped */
-    for (int i = (first_free_slot / slots_per_cnode + 1); i < n_cnodes; i++) {
+    for (size_t i = (first_free_slot / slots_per_cnode + 1); i < n_cnodes; i++) {
         cspace->bot_lvl_nodes[i / BOT_LVL_PER_NODE]->n_cnodes++;
     }
 
     /* finally allocate the watermark */
-    for (int i = 0; i < WATERMARK_SLOTS; i++) {
+    for (size_t i = 0; i < WATERMARK_SLOTS; i++) {
         cspace->watermark[i] = cspace_alloc_slot(cspace);
         ZF_LOGF_IF(cspace->watermark[i] == seL4_CapNull, "Failed to allocate watermark cslot");
     }

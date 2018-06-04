@@ -138,15 +138,15 @@ static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loader, seL4_CPt
             /* copy the frame cap into the loader slot */
             err = cspace_copy(cspace, loader_frame, cspace, loadee_frame, seL4_AllRights);
             if (err != seL4_NoError) {
-                ZF_LOGD("Failed to copy frame cap");
-                break;
+                ZF_LOGD("Failed to copy frame cap, cptr %lx", loader_frame);
+                return -1;
             }
 
             /* map the frame into the loader address space */
             err = map_frame(cspace, loader_frame, loader, loader_vaddr, seL4_AllRights,
                             seL4_ARM_Default_VMAttributes);
             if (err) {
-                ZF_LOGD("Failed to map into loader at %p", loader_vaddr);
+                ZF_LOGD("Failed to map into loader at %p", (void *) loader_vaddr);
                 return -1;
             }
         }
@@ -195,7 +195,7 @@ int elf_load(cspace_t *cspace, seL4_CPtr loader_vspace, seL4_CPtr loadee_vspace,
         seL4_Word flags = elf_getProgramHeaderFlags(elf_file, i);
 
         /* Copy it across into the vspace. */
-        ZF_LOGD(" * Loading segment %p-->%p\n", (void *) vaddr, (int)(vaddr + segment_size));
+        ZF_LOGD(" * Loading segment %p-->%p\n", (void *) vaddr, (void *)(vaddr + segment_size));
         int err = load_segment_into_vspace(cspace, loader_vspace, loadee_vspace,
                                            source_addr, segment_size, file_size, vaddr,
                                            get_sel4_rights_from_elf(flags));
