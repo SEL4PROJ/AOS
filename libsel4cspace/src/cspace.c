@@ -337,7 +337,7 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
         }
 
         bf_set_bit(bot_lvl->bf, bot_index);
-        if (bot_index == WORD_BITS - 1) {
+        if (bot_index == CNODE_SLOTS(CNODE_SIZE_BITS) - 1) {
             /* we just allocated the last slot -> mark the top level as full */
             bf_set_bit(cspace->top_bf, top_index);
         }
