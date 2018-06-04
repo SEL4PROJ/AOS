@@ -7,7 +7,8 @@
  *
  * @TAG(NICTA_BSD)
  */
-
+#include <autoconf.h>
+#include <utils/util.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -22,36 +23,36 @@
 #include <elf/elf.h>
 #include <serial/serial.h>
 
+#include "bootstrap.h"
 #include "network.h"
-
-#include "ut_manager/ut.h"
+#include "ut.h"
 #include "vmem_layout.h"
 #include "mapping.h"
 #include "elfload.h"
+#include "syscalls.h"
 
-#include <autoconf.h>
-
-#define verbose 5
-#include <sys/debug.h>
-#include <sys/panic.h>
-#include <syscalls.h>
 #include <aos/vsyscall.h>
 
-/* This is the index where a clients syscall enpoint will
+/* This is the cptr where a clients syscall enpoint will
  * be stored in the clients cspace. */
 #define USER_EP_CAP          (1)
-/* To differencient between async and and sync IPC, we assign a
- * badge to the async endpoint. The badge that we receive will
- * be the bitwise 'OR' of the async endpoint badge and the badges
- * of all pending notifications. */
-#define IRQ_EP_BADGE         (1 << (seL4_BadgeBits - 1))
+/* To differentiate between signals from notification objects and and IPC messages,
+ * we assign a badge to the notification object. The badge that we receive will
+ * be the bitwise 'OR' of the notification object badge and the badges
+ * of all pending IPC messages. */
+#define IRQ_EP_BADGE         BIT(seL4_BadgeBits - 1)
 /* All badged IRQs set high bet, then we use uniq bits to
  * distinguish interrupt sources */
-#define IRQ_BADGE_NETWORK (1 << 0)
+#define IRQ_BADGE_NETWORK BIT(0)
 
-#define TTY_NAME             CONFIG_SOS_STARTUP_APP
+#define TTY_NAME             "tty_test"
 #define TTY_PRIORITY         (0)
 #define TTY_EP_BADGE         (101)
+
+/*
+ * A dummy starting syscall
+ */
+#define SOS_SYSCALL0 0
 
 /* The linker will link this symbol to the start address  *
  * of an archive of attached applications.                */
@@ -60,341 +61,367 @@ extern char _cpio_archive[];
 /* root tasks cspace */
 static cspace_t cspace;
 
-struct {
+/* the one process we start */
+static struct {
+    ut_t *tcb_ut;
+    seL4_CPtr tcb;
+    ut_t *vspace_ut;
+    seL4_CPtr vspace;
 
-    seL4_Word tcb_addr;
-    seL4_TCB tcb_cap;
+    ut_t *ipc_buffer_ut;
+    seL4_CPtr ipc_buffer;
 
     cspace_t cspace;
 
+    ut_t *stack_ut;
+    seL4_CPtr stack;
 } tty_test_process;
-
-
-/*
- * A dummy starting syscall
- */
-#define SOS_SYSCALL0 0
-
-seL4_CPtr _sos_ipc_ep_cap;
-seL4_CPtr _sos_interrupt_ep_cap;
 
 /**
  * NFS mount point
  */
 extern fhandle_t mnt_point;
 
+void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
+{
 
-void handle_syscall(seL4_Word badge, int num_args) {
-    seL4_Word syscall_number;
-    seL4_CPtr reply_cap;
-
-
-    syscall_number = seL4_GetMR(0);
-
+    /* allocate a slot for the reply cap */
+    seL4_CPtr reply = cspace_alloc_slot(&cspace);
+    seL4_Word syscall_number = seL4_GetMR(0);
     /* Save the caller */
-    reply_cap = cspace_save_reply_cap(cur_cspace);
-    assert(reply_cap != CSPACE_NULL);
+    seL4_Error err = cspace_save_reply_cap(&cspace, reply);
+    ZF_LOGF_IFERR(err, "Failed to save reply");
 
     /* Process system call */
     switch (syscall_number) {
     case SOS_SYSCALL0:
-        dprintf(0, "syscall: thread made syscall 0!\n");
-
-        seL4_MessageInfo_t reply = seL4_MessageInfo_new(0, 0, 0, 1);
+        ZF_LOGV("syscall: thread made syscall 0!\n");
+        seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
         seL4_SetMR(0, 0);
-        seL4_Send(reply_cap, reply);
-
+        seL4_Send(reply, reply_msg);
+        /* after this point, the reply slot is empty as the reply has been sent */
         break;
 
     default:
-        printf("%s:%d (%s) Unknown syscall %d\n",
-                   __FILE__, __LINE__, __func__, syscall_number);
-        /* we don't want to reply to an unknown syscall */
-
+        ZF_LOGE("Unknown syscall %lu\n", syscall_number);
+        /* don't reply to an unknown syscall */
     }
-
-    /* Free the saved reply cap */
-    cspace_free_slot(cur_cspace, reply_cap);
 }
 
-void syscall_loop(seL4_CPtr ep) {
+void syscall_loop(seL4_CPtr ep, UNUSED seL4_CPtr ntfn)
+{
 
     while (1) {
         seL4_Word badge;
-        seL4_Word label;
-        seL4_MessageInfo_t message;
+        seL4_MessageInfo_t message = seL4_Recv(ep, &badge);
+        seL4_Word label = seL4_MessageInfo_get_label(message);
 
-        message = seL4_Wait(ep, &badge);
-        label = seL4_MessageInfo_get_label(message);
-        if(badge & IRQ_EP_BADGE){
+        if (badge & IRQ_EP_BADGE) {
             /* Interrupt */
             if (badge & IRQ_BADGE_NETWORK) {
                 network_irq();
             }
-
-        }else if(label == seL4_VMFault){
-            /* Page fault */
-            dprintf(0, "vm fault at 0x%08x, pc = 0x%08x, %s\n", seL4_GetMR(1),
-                    seL4_GetMR(0),
-                    seL4_GetMR(2) ? "Instruction Fault" : "Data fault");
-
-            assert(!"Unable to handle vm faults");
-        }else if(label == seL4_NoFault) {
+        } else if (label == seL4_Fault_NullFault) {
             /* System call */
             handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1);
+        } else if (label) {
+            /* some kind of fault */
+            debug_print_fault(message, TTY_NAME);
+            /* dump registers too */
+            debug_dump_registers(tty_test_process.tcb);
 
-        }else{
-            printf("Rootserver got an unknown message\n");
+            ZF_LOGF("Unable to handle faults");
         }
     }
 }
 
-
-static void print_bootinfo(const seL4_BootInfo* info) {
-    int i;
-
-    /* General info */
-    dprintf(1, "Info Page:  %p\n", info);
-    dprintf(1,"IPC Buffer: %p\n", info->ipcBuffer);
-    dprintf(1,"Node ID: %d (of %d)\n",info->nodeID, info->numNodes);
-    dprintf(1,"IOPT levels: %d\n",info->numIOPTLevels);
-    dprintf(1,"Init cnode size bits: %d\n", info->initThreadCNodeSizeBits);
-
-    /* Cap details */
-    dprintf(1,"\nCap details:\n");
-    dprintf(1,"Type              Start      End\n");
-    dprintf(1,"Empty             0x%08x 0x%08x\n", info->empty.start, info->empty.end);
-    dprintf(1,"Shared frames     0x%08x 0x%08x\n", info->sharedFrames.start, 
-                                                   info->sharedFrames.end);
-    dprintf(1,"User image frames 0x%08x 0x%08x\n", info->userImageFrames.start, 
-                                                   info->userImageFrames.end);
-    dprintf(1,"User image PTs    0x%08x 0x%08x\n", info->userImagePTs.start, 
-                                                   info->userImagePTs.end);
-    dprintf(1,"Untypeds          0x%08x 0x%08x\n", info->untyped.start, info->untyped.end);
-
-    /* Untyped details */
-    dprintf(1,"\nUntyped details:\n");
-    dprintf(1,"Untyped Slot       Paddr      Bits\n");
-    for (i = 0; i < info->untyped.end-info->untyped.start; i++) {
-        dprintf(1,"%3d     0x%08x 0x%08x %d\n", i, info->untyped.start + i,
-                                                   info->untypedPaddrList[i],
-                                                   info->untypedSizeBitsList[i]);
+/* helper to allocate a ut + cslot, and retype the ut into the cslot */
+static ut_t *alloc_retype(seL4_CPtr *cptr, seL4_Word type, size_t size_bits)
+{
+    /* Allocate the object */
+    ut_t *ut = ut_alloc(size_bits, &cspace);
+    if (ut == NULL) {
+        ZF_LOGE("No memory for object of size %zu", size_bits);
+        return NULL;
     }
 
-    /* Device untyped details */
-    dprintf(1,"\nDevice untyped details:\n");
-    dprintf(1,"Untyped Slot       Paddr      Bits\n");
-    for (i = 0; i < info->deviceUntyped.end-info->deviceUntyped.start; i++) {
-        dprintf(1,"%3d     0x%08x 0x%08x %d\n", i, info->deviceUntyped.start + i,
-                                                   info->untypedPaddrList[i + (info->untyped.end - info->untyped.start)],
-                                                   info->untypedSizeBitsList[i + (info->untyped.end-info->untyped.start)]);
+    /* allocate a slot to retype the memory for object into */
+    *cptr = cspace_alloc_slot(&cspace);
+    if (*cptr == seL4_CapNull) {
+        ut_free(ut, size_bits);
+        ZF_LOGE("Failed to allocate slot");
+        return NULL;
     }
 
-    dprintf(1,"-----------------------------------------\n\n");
-
-    /* Print cpio data */
-    dprintf(1,"Parsing cpio data:\n");
-    dprintf(1,"--------------------------------------------------------\n");
-    dprintf(1,"| index |        name      |  address   | size (bytes) |\n");
-    dprintf(1,"|------------------------------------------------------|\n");
-    for(i = 0;; i++) {
-        unsigned long size;
-        const char *name;
-        void *data;
-
-        data = cpio_get_entry(_cpio_archive, i, &name, &size);
-        if(data != NULL){
-            dprintf(1,"| %3d   | %16s | %p | %12d |\n", i, name, data, size);
-        }else{
-            break;
-        }
+    /* now do the retype */
+    seL4_Error err = cspace_untyped_retype(&cspace, ut->cap, *cptr, type, size_bits);
+    ZF_LOGE_IFERR(err, "Failed retype untyped for notification object");
+    if (err != seL4_NoError) {
+        ut_free(ut, size_bits);
+        cspace_free_slot(&cspace, *cptr);
+        return NULL;
     }
-    dprintf(1,"--------------------------------------------------------\n");
+
+    return ut;
 }
 
-void start_first_process(char* app_name, seL4_CPtr fault_ep) {
-    int err;
+static int stack_write(seL4_Word *mapped_stack, int index, uintptr_t val)
+{
+    mapped_stack[index] = val;
+    return index - 1;
+}
 
-    seL4_Word stack_addr;
-    seL4_CPtr stack_cap;
-    seL4_CPtr user_ep_cap;
-
-    /* These required for setting up the TCB */
-    seL4_UserContext context;
-
-    /* These required for loading program sections */
-    char* elf_base;
-    unsigned long elf_size;
-
-    /* Create a VSpace */
-    tty_test_process.vroot_addr = ut_alloc(seL4_PageDirBits);
-    conditional_panic(!tty_test_process.vroot_addr, 
-                      "No memory for new Page Directory");
-    err = cspace_ut_retype_addr(tty_test_process.vroot_addr,
-                                seL4_ARM_PageDirectoryObject,
-                                seL4_PageDirBits,
-                                cur_cspace,
-                                &tty_test_process.vroot);
-    conditional_panic(err, "Failed to allocate page directory cap for client");
-
-    /* Create a simple 1 level CSpace */
-    tty_test_process.croot = cspace_create(1);
-    assert(tty_test_process.croot != NULL);
-
-    /* Create an IPC buffer */
-    tty_test_process.ipc_buffer_addr = ut_alloc(seL4_PageBits);
-    conditional_panic(!tty_test_process.ipc_buffer_addr, "No memory for ipc buffer");
-    err =  cspace_ut_retype_addr(tty_test_process.ipc_buffer_addr,
-                                 seL4_ARM_SmallPageObject,
-                                 seL4_PageBits,
-                                 cur_cspace,
-                                 &tty_test_process.ipc_buffer_cap);
-    conditional_panic(err, "Unable to allocate page for IPC buffer");
-
-    /* Copy the fault endpoint to the user app to enable IPC */
-    user_ep_cap = cspace_mint_cap(tty_test_process.croot,
-                                  cur_cspace,
-                                  fault_ep,
-                                  seL4_AllRights, 
-                                  seL4_CapData_Badge_new(TTY_EP_BADGE));
-    /* should be the first slot in the space, hack I know */
-    assert(user_ep_cap == 1);
-    assert(user_ep_cap == USER_EP_CAP);
-
-    /* Create a new TCB object */
-    tty_test_process.tcb_addr = ut_alloc(seL4_TCBBits);
-    conditional_panic(!tty_test_process.tcb_addr, "No memory for new TCB");
-    err =  cspace_ut_retype_addr(tty_test_process.tcb_addr,
-                                 seL4_TCBObject,
-                                 seL4_TCBBits,
-                                 cur_cspace,
-                                 &tty_test_process.tcb_cap);
-    conditional_panic(err, "Failed to create TCB");
-
-    /* Configure the TCB */
-    err = seL4_TCB_Configure(tty_test_process.tcb_cap, user_ep_cap, TTY_PRIORITY,
-                             tty_test_process.croot->root_cnode, seL4_NilData,
-                             tty_test_process.vroot, seL4_NilData, PROCESS_IPC_BUFFER,
-                             tty_test_process.ipc_buffer_cap);
-    conditional_panic(err, "Unable to configure new TCB");
-
-    /* Provide a logical name for the thread -- Helpful for debugging */
-#ifdef SEL4_DEBUG_KERNEL
-    seL4_DebugNameThread(tty_test_process.tcb_cap, app_name);
-#endif
-
-    /* parse the cpio image */
-    dprintf(1, "\nStarting \"%s\"...\n", app_name);
-    elf_base = cpio_get_file(_cpio_archive, app_name, &elf_size);
-    conditional_panic(!elf_base, "Unable to locate cpio header");
-
-    /* load the elf image */
-    err = elf_load(tty_test_process.vroot, elf_base);
-    conditional_panic(err, "Failed to load elf image");
-
-
+/* set up System V ABI compliant stack, so that the process can
+ * start up and initialise the c library */
+static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, char *elf_file)
+{
     /* Create a stack frame */
-    stack_addr = ut_alloc(seL4_PageBits);
-    conditional_panic(!stack_addr, "No memory for stack");
-    err =  cspace_ut_retype_addr(stack_addr,
-                                 seL4_ARM_SmallPageObject,
-                                 seL4_PageBits,
-                                 cur_cspace,
-                                 &stack_cap);
-    conditional_panic(err, "Unable to allocate page for stack");
+    tty_test_process.stack_ut = alloc_retype(&tty_test_process.stack, seL4_ARM_SmallPageObject, seL4_PageBits);
+    if (tty_test_process.stack_ut == NULL) {
+        ZF_LOGE("Failed to allocate stack");
+        return 0;
+    }
+
+    /* virtual addresses in the target process */
+    uintptr_t stack_top = PROCESS_STACK_TOP;
+    uintptr_t stack_bottom = PROCESS_STACK_TOP - PAGE_SIZE_4K;
+    /* virtual addresses in the local process */
+    void *local_stack_top  = (seL4_Word *) SOS_SCRATCH;
+    uintptr_t local_stack_bottom = SOS_SCRATCH - PAGE_SIZE_4K;
+
+    /* find the vsyscall table */
+    uintptr_t sysinfo = *((uintptr_t *) elf_getSectionNamed(elf_file, "__vsyscall", NULL));
+    if (sysinfo == 0) {
+        ZF_LOGE("could not find syscall table for c library");
+        return 0;
+    }
 
     /* Map in the stack frame for the user app */
-    err = map_page(stack_cap, tty_test_process.vroot,
-                   PROCESS_STACK_TOP - (1 << seL4_PageBits),
-                   seL4_AllRights, seL4_ARM_Default_VMAttributes);
-    conditional_panic(err, "Unable to map stack IPC buffer for user app");
-
-    /* Map in the IPC buffer for the thread */
-    err = map_page(tty_test_process.ipc_buffer_cap, tty_test_process.vroot,
-                   PROCESS_IPC_BUFFER,
-                   seL4_AllRights, seL4_ARM_Default_VMAttributes);
-    conditional_panic(err, "Unable to map IPC buffer for user app");
-
-    /* Start the new process */
-    memset(&context, 0, sizeof(context));
-    context.pc = elf_getEntryPoint(elf_base);
-    context.sp = PROCESS_STACK_TOP;
-    seL4_TCB_WriteRegisters(tty_test_process.tcb_cap, 1, 0, 2, &context);
-}
-
-static void _sos_ipc_init(seL4_CPtr* ipc_ep, seL4_CPtr* async_ep){
-    seL4_Word ep_addr, aep_addr;
-    int err;
-
-    /* Create an Async endpoint for interrupts */
-    aep_addr = ut_alloc(seL4_EndpointBits);
-    conditional_panic(!aep_addr, "No memory for async endpoint");
-    err = cspace_ut_retype_addr(aep_addr,
-                                seL4_AsyncEndpointObject,
-                                seL4_EndpointBits,
-                                cur_cspace,
-                                async_ep);
-    conditional_panic(err, "Failed to allocate c-slot for Interrupt endpoint");
-
-    /* Bind the Async endpoint to our TCB */
-    err = seL4_TCB_BindAEP(seL4_CapInitThreadTCB, *async_ep);
-    conditional_panic(err, "Failed to bind ASync EP to TCB");
-
-
-    /* Create an endpoint for user application IPC */
-    ep_addr = ut_alloc(seL4_EndpointBits);
-    conditional_panic(!ep_addr, "No memory for endpoint");
-    err = cspace_ut_retype_addr(ep_addr, 
-                                seL4_EndpointObject,
-                                seL4_EndpointBits,
-                                cur_cspace,
-                                ipc_ep);
-    conditional_panic(err, "Failed to allocate c-slot for IPC endpoint");
-}
-
-
-static void _sos_init(seL4_CPtr* ipc_ep, seL4_CPtr* async_ep){
-    seL4_Word dma_addr;
-    seL4_Word low, high;
-    int err;
-
-    /* Retrieve boot info from seL4 */
-    _boot_info = seL4_GetBootInfo();
-    conditional_panic(!_boot_info, "Failed to retrieve boot info\n");
-    if(verbose > 0){
-        print_bootinfo(_boot_info);
+    seL4_Error err = map_frame(cspace, tty_test_process.stack, tty_test_process.vspace, stack_bottom,
+                               seL4_AllRights, seL4_ARM_Default_VMAttributes);
+    if (err != 0) {
+        ZF_LOGE("Unable to map stack for user app");
+        return 0;
     }
 
-    /* Initialise the untyped sub system and reserve memory for DMA */
-    err = ut_table_init(_boot_info);
-    conditional_panic(err, "Failed to initialise Untyped Table\n");
-    /* DMA uses a large amount of memory that will never be freed */
-    dma_addr = ut_steal_mem(DMA_SIZE_BITS);
-    conditional_panic(dma_addr == 0, "Failed to reserve DMA memory\n");
+    /* allocate a slot to duplicate the stack frame cap so we can map it into our address space */
+    seL4_CPtr local_stack_cptr = cspace_alloc_slot(cspace);
+    if (local_stack_cptr == seL4_CapNull) {
+        ZF_LOGE("Failed to alloc slot for stack");
+        return 0;
+    }
 
-    /* find available memory */
-    ut_find_memory(&low, &high);
+    /* copy the stack frame cap into the slot */
+    err = cspace_copy(cspace, local_stack_cptr, cspace, tty_test_process.stack, seL4_AllRights);
+    if (err != seL4_NoError) {
+        cspace_free_slot(cspace, local_stack_cptr);
+        ZF_LOGE("Failed to copy cap");
+        return 0;
+    }
 
-    /* Initialise the untyped memory allocator */
-    ut_allocator_init(low, high);
+    /* map it into the sos address space */
+    err = map_frame(cspace, local_stack_cptr, local_vspace, local_stack_bottom, seL4_AllRights,
+                    seL4_ARM_Default_VMAttributes);
+    if (err != seL4_NoError) {
+        cspace_delete(cspace, local_stack_cptr);
+        cspace_free_slot(cspace, local_stack_cptr);
+        return 0;
+    }
 
-    /* Initialise the cspace manager */
-    err = cspace_root_task_bootstrap(ut_alloc, ut_free, ut_translate,
-                                     malloc, free);
-    conditional_panic(err, "Failed to initialise the c space\n");
+    int index = -2;
 
-    /* Initialise DMA memory */
-    err = dma_init(dma_addr, DMA_SIZE_BITS);
-    conditional_panic(err, "Failed to intiialise DMA memory\n");
+    /* null terminate the aux vectors */
+    index = stack_write(local_stack_top, index, 0);
+    index = stack_write(local_stack_top, index, 0);
 
-    /* Initialiase other system compenents here */
+    /* write the aux vectors */
+    index = stack_write(local_stack_top, index, PAGE_SIZE_4K);
+    index = stack_write(local_stack_top, index, AT_PAGESZ);
 
-    _sos_ipc_init(ipc_ep, async_ep);
+    index = stack_write(local_stack_top, index, sysinfo);
+    index = stack_write(local_stack_top, index, AT_SYSINFO);
+
+    /* null terminate the environment pointers */
+    index = stack_write(local_stack_top, index, 0);
+
+    /* we don't have any env pointers - skip */
+
+    /* null terminate the argument pointers */
+    index = stack_write(local_stack_top, index, 0);
+
+    /* no argpointers - skip */
+
+    /* set argc to 0 */
+    stack_write(local_stack_top, index, 0);
+
+    /* adjust the initial stack top */
+    stack_top += (index * sizeof(seL4_Word));
+
+    /* the stack *must* remain aligned to a double word boundary,
+     * as GCC assumes this, and horrible bugs occur if this is wrong */
+    assert(index % 2 == 0);
+    assert(stack_top % (sizeof(seL4_Word) * 2) == 0);
+
+    /* unmap our copy of the stack */
+    err = seL4_ARM_Page_Unmap(local_stack_cptr);
+    assert(err == seL4_NoError);
+
+    /* delete the copy of the stack frame cap */
+    err = cspace_delete(cspace, local_stack_cptr);
+    assert(err == seL4_NoError);
+
+    /* mark the slot as free */
+    cspace_free_slot(cspace, local_stack_cptr);
+
+    return stack_top;
 }
 
-static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge) {
-    seL4_CPtr badged_cap = cspace_mint_cap(cur_cspace, cur_cspace, ep, seL4_AllRights, seL4_CapData_Badge_new(badge | IRQ_EP_BADGE));
-    conditional_panic(!badged_cap, "Failed to allocate badged cap");
+/* Start the first process, and return true if successful
+ *
+ * This function will leak memory if the process does not start successfully.
+ * TODO: avoid leaking memory once you implement real processes, otherwise a user
+ *       can force your OS to run out of memory by creating lots of failed processes.
+ */
+bool start_first_process(char* app_name, seL4_CPtr ep)
+{
+    /* Create a VSpace */
+    tty_test_process.vspace_ut = alloc_retype(&tty_test_process.vspace, seL4_ARM_PageGlobalDirectoryObject,
+                                              seL4_PGDBits);
+    if (tty_test_process.vspace_ut == NULL) {
+        return false;
+    }
+
+    /* assign the vspace to an asid pool */
+    seL4_Word err = seL4_ARM_ASIDPool_Assign(seL4_CapInitThreadASIDPool, tty_test_process.vspace);
+    if (err != seL4_NoError) {
+        ZF_LOGE("Failed to assign asid pool");
+        return false;
+    }
+
+    /* Create a simple 1 level CSpace */
+    err = cspace_create_one_level(&cspace, &tty_test_process.cspace);
+    if (err != CSPACE_NOERROR) {
+        ZF_LOGE("Failed to create cspace");
+        return false;
+    }
+
+    /* Create an IPC buffer */
+    tty_test_process.ipc_buffer_ut = alloc_retype(&tty_test_process.ipc_buffer, seL4_ARM_SmallPageObject,
+                                                  seL4_PageBits);
+    if (tty_test_process.ipc_buffer_ut == NULL) {
+        ZF_LOGE("Failed to alloc ipc buffer ut");
+        return false;
+    }
+
+    /* allocate a new slot in the target cspace which we will mint a badged endpoint cap into */
+    seL4_CPtr user_ep = cspace_alloc_slot(&tty_test_process.cspace);
+    if (user_ep == seL4_CapNull) {
+        ZF_LOGE("Failed to alloc user ep slot");
+        return false;
+    }
+
+    /* now mutate the cap, thereby setting the badge */
+    err = cspace_mint(&tty_test_process.cspace, user_ep, &cspace, ep, seL4_AllRights, TTY_EP_BADGE);
+    if (err) {
+        ZF_LOGE("Failed to mint user ep");
+        return false;
+    }
+
+    /* Create a new TCB object */
+    tty_test_process.tcb_ut = alloc_retype(&tty_test_process.tcb, seL4_TCBObject, seL4_TCBBits);
+    if (tty_test_process.tcb_ut == NULL) {
+        ZF_LOGE("Failed to alloc tcb ut");
+        return false;
+    }
+
+    /* Configure the TCB */
+    err = seL4_TCB_Configure(tty_test_process.tcb, user_ep,
+                             tty_test_process.cspace.root_cnode, seL4_NilData,
+                             tty_test_process.vspace, seL4_NilData, PROCESS_IPC_BUFFER,
+                             tty_test_process.ipc_buffer);
+    if (err != seL4_NoError) {
+        ZF_LOGE("Unable to configure new TCB");
+        return false;
+    }
+
+    /* Set the priority */
+    err = seL4_TCB_SetPriority(tty_test_process.tcb, seL4_CapInitThreadTCB, TTY_PRIORITY);
+    if (err != seL4_NoError) {
+        ZF_LOGE("Unable to set priority of new TCB");
+        return false;
+    }
+
+    /* Provide a name for the thread -- Helpful for debugging */
+    NAME_THREAD(tty_test_process.tcb, app_name);
+
+    /* parse the cpio image */
+    ZF_LOGI( "\nStarting \"%s\"...\n", app_name);
+    unsigned long elf_size;
+    char* elf_base = cpio_get_file(_cpio_archive, app_name, &elf_size);
+    if (elf_base == NULL) {
+        ZF_LOGE("Unable to locate cpio header for %s", app_name);
+        return false;
+    }
+
+    /* set up the stack */
+    seL4_Word sp = init_process_stack(&cspace, seL4_CapInitThreadVSpace, elf_base);
+
+    /* load the elf image */
+    err = elf_load(&cspace, seL4_CapInitThreadVSpace, tty_test_process.vspace, elf_base);
+    if (err) {
+        ZF_LOGE("Failed to load elf image");
+        return false;
+    }
+
+    /* Map in the IPC buffer for the thread */
+    err = map_frame(&cspace, tty_test_process.ipc_buffer, tty_test_process.vspace, PROCESS_IPC_BUFFER,
+                    seL4_AllRights, seL4_ARM_Default_VMAttributes);
+    if (err != 0) {
+        ZF_LOGE("Unable to map IPC buffer for user app");
+        return false;
+    }
+
+    /* Start the new process */
+    seL4_UserContext context = {
+        .pc = elf_getEntryPoint(elf_base),
+        .sp = sp,
+    };
+    printf("Starting ttytest at %p\n", (void *) context.pc);
+    err = seL4_TCB_WriteRegisters(tty_test_process.tcb, 1, 0, 2, &context);
+    ZF_LOGE_IF(err, "Failed to write registers");
+    return err == seL4_NoError;
+}
+
+/* Allocate an endpoint and a notification object for sos.
+ * Note that these objects will never be freed, so we do not
+ * track the allocated ut objects anywhere
+ */
+static void sos_ipc_init(seL4_CPtr* ipc_ep, seL4_CPtr* ntfn)
+{
+    /* Create an notification object for interrupts */
+    ut_t *ut = alloc_retype(ntfn, seL4_NotificationObject, seL4_NotificationBits);
+    ZF_LOGF_IF(!ut, "No memory for notification object");
+
+    /* Bind the notification object to our TCB */
+    seL4_Error err = seL4_TCB_BindNotification(seL4_CapInitThreadTCB, *ntfn);
+    ZF_LOGF_IFERR(err, "Failed to bind notification object to TCB");
+
+    /* Create an endpoint for user application IPC */
+    ut = alloc_retype(ipc_ep, seL4_EndpointObject, seL4_EndpointBits);
+    ZF_LOGF_IF(!ut, "No memory for endpoint");
+}
+
+static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge)
+{
+    /* allocate a slot */
+    seL4_CPtr badged_cap = cspace_alloc_slot(&cspace);
+    ZF_LOGF_IF(badged_cap == seL4_CapNull, "Failed to allocate slot");
+
+    /* mint the cap, which sets the badge */
+    seL4_Error err = cspace_mint(&cspace, badged_cap, &cspace, ep, seL4_AllRights, badge | IRQ_EP_BADGE);
+    ZF_LOGE_IFERR(err, "Failed to mint cap");
+
+    /* return the badged cptr */
     return badged_cap;
 }
 
