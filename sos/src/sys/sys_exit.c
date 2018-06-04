@@ -15,7 +15,8 @@
 
 #include "execinfo.h" /*for backtrace()*/
 
-static void sel4_abort(void) {
+static void sel4_abort(void)
+{
     printf("seL4 root server aborted\n");
 
     /* Printout backtrace*/
@@ -41,35 +42,35 @@ static void sel4_abort(void) {
 }
 
 long
-sys_exit(va_list ap)
+sys_exit(UNUSED va_list ap)
 {
     abort();
     return 0;
 }
 
 long
-sys_rt_sigprocmask(va_list ap)
+sys_rt_sigprocmask(UNUSED va_list ap)
 {
     printf("Ignoring call to %s\n", __FUNCTION__);
     return 0;
 }
 
 long
-sys_gettid(va_list ap)
+sys_gettid(UNUSED va_list ap)
 {
     printf("Ignoring call to %s\n", __FUNCTION__);
     return 0;
 }
 
 long
-sys_getpid(va_list ap)
+sys_getpid(UNUSED va_list ap)
 {
     printf("Ignoring call to %s\n", __FUNCTION__);
     return 0;
 }
 
 long
-sys_tgkill(va_list ap)
+sys_tgkill(UNUSED va_list ap)
 {
     printf("%s assuming self kill\n", __FUNCTION__);
     sel4_abort();

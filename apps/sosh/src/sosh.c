@@ -32,17 +32,19 @@
 static int in;
 static sos_stat_t sbuf;
 
-static void prstat(const char *name) {
+static void prstat(const char *name)
+{
     /* print out stat buf */
     printf("%c%c%c%c 0x%06x 0x%lx 0x%06lx %s\n",
-            sbuf.st_type == ST_SPECIAL ? 's' : '-',
-            sbuf.st_fmode & FM_READ ? 'r' : '-',
-            sbuf.st_fmode & FM_WRITE ? 'w' : '-',
-            sbuf.st_fmode & FM_EXEC ? 'x' : '-', sbuf.st_size, sbuf.st_ctime,
-            sbuf.st_atime, name);
+           sbuf.st_type == ST_SPECIAL ? 's' : '-',
+           sbuf.st_fmode & FM_READ ? 'r' : '-',
+           sbuf.st_fmode & FM_WRITE ? 'w' : '-',
+           sbuf.st_fmode & FM_EXEC ? 'x' : '-', sbuf.st_size, sbuf.st_ctime,
+           sbuf.st_atime, name);
 }
 
-static int cat(int argc, char **argv) {
+static int cat(int argc, char **argv)
+{
     int fd;
     char buf[BUF_SIZ];
     int num_read, stdout_fd, num_written = 0;
@@ -60,8 +62,9 @@ static int cat(int argc, char **argv) {
 
     assert(fd >= 0);
 
-    while ((num_read = read(fd, buf, BUF_SIZ)) > 0)
+    while ((num_read = read(fd, buf, BUF_SIZ)) > 0) {
         num_written = write(stdout_fd, buf, num_read);
+    }
 
     close(stdout_fd);
 
@@ -73,7 +76,8 @@ static int cat(int argc, char **argv) {
     return 0;
 }
 
-static int cp(int argc, char **argv) {
+static int cp(int argc, char **argv)
+{
     int fd, fd_out;
     char *file1, *file2;
     char buf[BUF_SIZ];
@@ -92,8 +96,9 @@ static int cp(int argc, char **argv) {
 
     assert(fd >= 0);
 
-    while ((num_read = read(fd, buf, BUF_SIZ)) > 0)
+    while ((num_read = read(fd, buf, BUF_SIZ)) > 0) {
         num_written = write(fd_out, buf, num_read);
+    }
 
     if (num_read == -1 || num_written == -1) {
         printf("error on cp\n");
@@ -105,7 +110,8 @@ static int cp(int argc, char **argv) {
 
 #define MAX_PROCESSES 10
 
-static int ps(int argc, char **argv) {
+static int ps(int argc, char **argv)
+{
     sos_process_t *process;
     int i, processes;
 
@@ -122,7 +128,7 @@ static int ps(int argc, char **argv) {
 
     for (i = 0; i < processes; i++) {
         printf("%3d %4d %7d %s\n", process[i].pid, process[i].size,
-                process[i].stime, process[i].command);
+               process[i].stime, process[i].command);
     }
 
     free(process);
@@ -130,7 +136,8 @@ static int ps(int argc, char **argv) {
     return 0;
 }
 
-static int exec(int argc, char **argv) {
+static int exec(int argc, char **argv)
+{
     pid_t pid;
     int r;
     int bg = 0;
@@ -165,7 +172,8 @@ static int exec(int argc, char **argv) {
     return 0;
 }
 
-static int dir(int argc, char **argv) {
+static int dir(int argc, char **argv)
+{
     int i = 0, r;
     char buf[BUF_SIZ];
 
@@ -203,7 +211,8 @@ static int dir(int argc, char **argv) {
     return 0;
 }
 
-static int second_sleep(int argc,char *argv[]) {
+static int second_sleep(int argc, char *argv[])
+{
     if (argc != 2) {
         printf("Usage %s seconds\n", argv[0]);
         return 1;
@@ -212,7 +221,8 @@ static int second_sleep(int argc,char *argv[]) {
     return 0;
 }
 
-static int milli_sleep(int argc,char *argv[]) {
+static int milli_sleep(int argc, char *argv[])
+{
     struct timespec tv;
     uint64_t nanos;
     if (argc != 2) {
@@ -228,20 +238,23 @@ static int milli_sleep(int argc,char *argv[]) {
     return 0;
 }
 
-static int second_time(int argc, char *argv[]) {
+static int second_time(int argc, char *argv[])
+{
     printf("%d seconds since boot\n", (int)time(NULL));
     return 0;
 }
 
-static int micro_time(int argc, char *argv[]) {
+static int micro_time(int argc, char *argv[])
+{
     struct timeval time;
     gettimeofday(&time, NULL);
     uint64_t micros = (uint64_t)time.tv_sec * US_IN_S + (uint64_t)time.tv_usec;
-    printf("%llu microseconds since boot\n", micros);
+    printf("%lu microseconds since boot\n", micros);
     return 0;
 }
 
-static int kill(int argc, char *argv[]) {
+static int kill(int argc, char *argv[])
+{
     pid_t pid;
     if (argc != 2) {
         printf("Usage: kill pid\n");
@@ -252,8 +265,9 @@ static int kill(int argc, char *argv[]) {
     return sos_process_delete(pid);
 }
 
-static int benchmark(int argc, char *argv[]) {
-    if(argc == 2 && strcmp(argv[1], "-d") == 0) {
+static int benchmark(int argc, char *argv[])
+{
+    if (argc == 2 && strcmp(argv[1], "-d") == 0) {
         printf("Running benchmark in DEBUG mode\n");
         return sos_benchmark(1);
     } else if (argc == 1) {
@@ -271,9 +285,11 @@ struct command {
 };
 
 struct command commands[] = { { "dir", dir }, { "ls", dir }, { "cat", cat }, {
-        "cp", cp }, { "ps", ps }, { "exec", exec }, {"sleep",second_sleep}, {"msleep",milli_sleep},
-        {"time", second_time}, {"mtime", micro_time}, {"kill", kill},
-        {"benchmark", benchmark}};
+        "cp", cp
+    }, { "ps", ps }, { "exec", exec }, {"sleep", second_sleep}, {"msleep", milli_sleep},
+    {"time", second_time}, {"mtime", micro_time}, {"kill", kill},
+    {"benchmark", benchmark}
+};
 
 int main(void)
 {
@@ -355,17 +371,20 @@ int main(void)
 
         while (*p != '\0') {
             /* Remove any leading spaces */
-            while (*p == ' ')
+            while (*p == ' ') {
                 p++;
-            if (*p == '\0')
+            }
+            if (*p == '\0') {
                 break;
+            }
             argv[argc++] = p; /* Start of the arg */
             while (*p != ' ' && *p != '\0') {
                 p++;
             }
 
-            if (*p == '\0')
+            if (*p == '\0') {
                 break;
+            }
 
             /* Null out first space */
             *p = '\0';

@@ -33,10 +33,8 @@ static uintptr_t morecore_top = (uintptr_t) &morecore_area[MORECORE_AREA_BYTE_SI
    returns 0 if failure, returns newbrk if success.
 */
 
-long
-sys_brk(va_list ap)
+long sys_brk(va_list ap)
 {
-
     uintptr_t ret;
     uintptr_t newbrk = va_arg(ap, uintptr_t);
 

@@ -28,24 +28,29 @@
 
 #include <sel4/sel4.h>
 
-void ttyout_init(void) {
+void ttyout_init(void)
+{
     /* Perform any initialisation you require here */
 }
 
-static size_t sos_debug_print(const void *vData, size_t count) {
+static size_t sos_debug_print(const void *vData, size_t count)
+{
     size_t i;
     const char *realdata = vData;
-    for (i = 0; i < count; i++)
+    for (i = 0; i < count; i++) {
         seL4_DebugPutChar(realdata[i]);
+    }
     return count;
 }
 
-size_t sos_write(void *vData, size_t count) {
+size_t sos_write(void *vData, size_t count)
+{
     //implement this to use your syscall
     return sos_debug_print(vData, count);
 }
 
-size_t sos_read(void *vData, size_t count) {
+size_t sos_read(void *vData, size_t count)
+{
     //implement this to use your syscall
     return 0;
 }

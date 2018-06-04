@@ -31,7 +31,8 @@
 // Block a thread forever
 // we do this by making an unimplemented system call.
 static void
-thread_block(void){
+thread_block(void)
+{
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 1);
     seL4_SetTag(tag);
     seL4_SetMR(0, 1);
@@ -49,7 +50,7 @@ int main(void)
         printf("task:\tHello world, I'm\ttty_test!\n");
         thread_block();
         // sleep(1);	// Implement this as a syscall
-    } while(1);
+    } while (1);
 
     return 0;
 }
