@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sel4/sel4.h>
+#include <utils/util.h>
 
 #include "execinfo.h" /*for backtrace()*/
 
@@ -75,3 +76,16 @@ sys_tgkill(va_list ap)
     return 0;
 }
 
+long sys_tkill(UNUSED va_list ap)
+{
+    ZF_LOGV("%s assuming self kill\n", __FUNCTION__);
+    sel4_abort();
+    return 0;
+}
+
+long
+sys_exit_group(UNUSED va_list ap)
+{
+    ZF_LOGV("Ignoring call to %s", __FUNCTION__);
+    return 0;
+}

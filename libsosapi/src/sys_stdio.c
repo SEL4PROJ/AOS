@@ -1,13 +1,14 @@
 /*
- * Copyright 2014, NICTA
+ * Copyright 2018, Data61
+ * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ * ABN 41 687 119 230.
  *
  * This software may be distributed and modified according to the terms of
  * the BSD 2-Clause license. Note that NO WARRANTY is provided.
  * See "LICENSE_BSD2.txt" for details.
  *
- * @TAG(NICTA_BSD)
+ * @TAG(DATA61_BSD)
  */
-
 #include <autoconf.h>
 #include <assert.h>
 #include <errno.h>
@@ -19,7 +20,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sos.h>
-
+#include <utils/attribute.h>
 #include <sel4/sel4.h>
 
 #include <sys/resource.h>
@@ -112,8 +113,7 @@ long sys_write(va_list ap)
     return writev(fd, &iov, 1);
 }
 
-long
-sys_ioctl(va_list ap)
+long sys_ioctl(va_list ap)
 {
     int fd = va_arg(ap, int);
     int request = va_arg(ap, int);
@@ -127,8 +127,8 @@ sys_ioctl(va_list ap)
     return 0;
 }
 
-static long
-sos_sys_open_wrapper(const char *pathname, int flags) {
+static long sos_sys_open_wrapper(const char *pathname, int flags)
+{
     long fd = sos_sys_open(pathname, flags);
     if (fd == STDIN_FD || fd == STDOUT_FD || fd == STDERR_FD) {
         /* Internally muslc believes it is on a posix system with
@@ -148,13 +148,12 @@ sos_sys_open_wrapper(const char *pathname, int flags) {
     return fd;
 }
 
-long
-sys_open(va_list ap)
+long sys_openat(va_list ap)
 {
+    int dirfd = va_arg(ap, int);
     const char *pathname = va_arg(ap, const char *);
     int flags = va_arg(ap, int);
-    mode_t mode = va_arg(ap, mode_t);
-    (void)mode;
+    UNUSED mode_t mode = va_arg(ap, mode_t);
     /* mask out flags we don't support */
     flags &= ~O_LARGEFILE;
     /* someone at some point got confused about what are flags and what the mode
@@ -162,13 +161,8 @@ sys_open(va_list ap)
     return sos_sys_open_wrapper(pathname, flags);
 }
 
-long
-sys_close(va_list ap)
+long sys_close(va_list ap)
 {
-    assert(!"Not implemented");
-    return 0;
-#if 0
     int fd = va_arg(ap, int);
     return sos_sys_close(fd);
-#endif
 }

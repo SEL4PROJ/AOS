@@ -1,14 +1,16 @@
 /*
- * Copyright 2014, NICTA
+ * Copyright 2018, Data61
+ * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ * ABN 41 687 119 230.
  *
  * This software may be distributed and modified according to the terms of
  * the BSD 2-Clause license. Note that NO WARRANTY is provided.
  * See "LICENSE_BSD2.txt" for details.
  *
- * @TAG(NICTA_BSD)
+ * @TAG(DATA61_BSD)
  */
-
 #include <autoconf.h>
+#include <utils/util.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -33,8 +35,7 @@ static uintptr_t morecore_top = (uintptr_t) &morecore_area[MORECORE_AREA_BYTE_SI
    returns 0 if failure, returns newbrk if success.
 */
 
-long
-sys_brk(va_list ap)
+long sys_brk(va_list ap)
 {
 
     uintptr_t ret;
@@ -54,8 +55,7 @@ sys_brk(va_list ap)
 
 /* Large mallocs will result in muslc calling mmap, so we do a minimal implementation
    here to support that. We make a bunch of assumptions in the process */
-long
-sys_mmap2(va_list ap)
+long sys_mmap(va_list ap)
 {
     void *addr = va_arg(ap, void*);
     size_t length = va_arg(ap, size_t);
@@ -63,26 +63,16 @@ sys_mmap2(va_list ap)
     int flags = va_arg(ap, int);
     int fd = va_arg(ap, int);
     off_t offset = va_arg(ap, off_t);
-    (void)addr;
-    (void)prot;
-    (void)fd;
-    (void)offset;
+
     if (flags & MAP_ANONYMOUS) {
-        /* Steal from the top */
-        uintptr_t base = morecore_top - length;
-        if (base < morecore_base) {
+        /* Check that we don't try and allocate more than exists */
+        if (length > morecore_top - morecore_base) {
             return -ENOMEM;
         }
-        morecore_top = base;
-        return base;
+        /* Steal from the top */
+        morecore_top -= length;
+        return morecore_top;
     }
-    assert(!"not implemented");
-    return -ENOMEM;
-}
-
-long
-sys_mremap(va_list ap)
-{
-    assert(!"not implemented");
+    ZF_LOGF("not implemented");
     return -ENOMEM;
 }

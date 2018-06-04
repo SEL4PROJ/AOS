@@ -20,7 +20,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <utils/time.h>
-
+#include <syscalls.h>
 /* Your OS header file */
 #include <sos.h>
 
@@ -275,7 +275,11 @@ struct command commands[] = { { "dir", dir }, { "ls", dir }, { "cat", cat }, {
         {"time", second_time}, {"mtime", micro_time}, {"kill", kill},
         {"benchmark", benchmark}};
 
-int main(void) {
+int main(void)
+{
+    /* set up the c library. printf will not work before this is called */
+    sosapi_init_syscall_table();
+
     char buf[BUF_SIZ];
     char *argv[MAX_ARGS];
     int i, r, done, found, new, argc;

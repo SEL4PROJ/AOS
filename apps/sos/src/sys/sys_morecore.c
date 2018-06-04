@@ -54,8 +54,8 @@ sys_brk(va_list ap)
 
 /* Large mallocs will result in muslc calling mmap, so we do a minimal implementation
    here to support that. We make a bunch of assumptions in the process */
-long
-sys_mmap2(va_list ap)
+
+long sys_mmap(va_list ap)
 {
     void *addr = va_arg(ap, void*);
     size_t length = va_arg(ap, size_t);

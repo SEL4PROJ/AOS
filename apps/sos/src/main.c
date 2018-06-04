@@ -34,6 +34,8 @@
 #define verbose 5
 #include <sys/debug.h>
 #include <sys/panic.h>
+#include <syscalls.h>
+#include <aos/vsyscall.h>
 
 /* This is the index where a clients syscall enpoint will
  * be stored in the clients cspace. */
@@ -396,14 +398,45 @@ static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge) {
     return badged_cap;
 }
 
+/* called by crt */
+seL4_CPtr get_seL4_CapInitThreadTCB(void)
+{
+    return seL4_CapInitThreadTCB;
+}
+
+/* tell muslc about our "syscalls", which will bve called by muslc on invocations to the c library */
+void init_muslc(void)
+{
+    muslcsys_install_syscall(__NR_set_tid_address, sys_set_tid_address);
+    muslcsys_install_syscall(__NR_writev, sys_writev);
+    muslcsys_install_syscall(__NR_exit, sys_exit);
+    muslcsys_install_syscall(__NR_rt_sigprocmask, sys_rt_sigprocmask);
+    muslcsys_install_syscall(__NR_gettid, sys_gettid);
+    muslcsys_install_syscall(__NR_getpid, sys_getpid);
+    muslcsys_install_syscall(__NR_tgkill, sys_tgkill);
+    muslcsys_install_syscall(__NR_tkill, sys_tkill);
+    muslcsys_install_syscall(__NR_exit_group, sys_exit_group);
+    muslcsys_install_syscall(__NR_ioctl, sys_ioctl);
+    muslcsys_install_syscall(__NR_mmap, sys_mmap);
+    muslcsys_install_syscall(__NR_brk,  sys_brk);
+}
+
 /*
  * Main entry point - called by crt.
  */
 int main(void)
 {
-    /* Retrieve boot info from seL4 */
-    seL4_BootInfo *boot_info = platsupport_get_bootinfo();
-    ZF_LOGF_IF(!boot_info, "Failed to retrieve boot info\n");
+    init_muslc();
+
+    /* bootinfo was set as an environment variable in _sel4_start */
+    char *bi_string = getenv("bootinfo");
+    ZF_LOGF_IF(!bi_string, "Could not parse bootinfo from env.");
+
+    seL4_BootInfo *boot_info;
+    if (sscanf(bi_string, "%p", &boot_info) != 1) {
+        ZF_LOGF("bootinfo environment value '%s' was not valid.", bi_string);
+    }
+
     debug_print_bootinfo(boot_info);
 
     printf("\nSOS Starting...\n");

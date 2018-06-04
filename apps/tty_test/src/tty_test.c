@@ -24,7 +24,7 @@
 #include <stdlib.h>
 
 #include <sel4/sel4.h>
-
+#include <syscalls.h>
 
 #include "ttyout.h"
 
@@ -38,7 +38,10 @@ thread_block(void){
     seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
 }
 
-int main(void){
+int main(void)
+{
+    sosapi_init_syscall_table();
+
     /* initialise communication */
     ttyout_init();
 

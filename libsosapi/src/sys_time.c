@@ -1,13 +1,14 @@
 /*
- * Copyright 2014, NICTA
+ * Copyright 2018, Data61
+ * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ * ABN 41 687 119 230.
  *
  * This software may be distributed and modified according to the terms of
  * the BSD 2-Clause license. Note that NO WARRANTY is provided.
  * See "LICENSE_BSD2.txt" for details.
  *
- * @TAG(NICTA_BSD)
+ * @TAG(DATA61_BSD)
  */
-
 #include <autoconf.h>
 #include <assert.h>
 #include <errno.h>
@@ -24,7 +25,8 @@
 
 #include <sel4/sel4.h>
 
-long sys_nanosleep(va_list ap) {
+long sys_nanosleep(va_list ap)
+{
     struct timespec *req = va_arg(ap, struct timespec*);
     struct timespec *rem = va_arg(ap, struct timespec*);
     /* We ignore the remaining since we will always wait the full time */
@@ -36,7 +38,8 @@ long sys_nanosleep(va_list ap) {
     return 0;
 }
 
-long sys_clock_gettime(va_list ap) {
+long sys_clock_gettime(va_list ap)
+{
     clockid_t clk_id = va_arg(ap, clockid_t);
     struct timespec *res = va_arg(ap, struct timespec*);
     if (clk_id != CLOCK_REALTIME) {
