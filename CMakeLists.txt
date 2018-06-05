@@ -17,8 +17,11 @@ include(${KERNEL_HELPERS_PATH})
 # add apps
 add_subdirectory(apps/tty_test)
 add_subdirectory(apps/sosh)
-add_subdirectory(apps/sos)
 # add any additional apps here
+
+# add sos itself, this is your OS
+# and root task
+add_subdirectory(sos)
 
 # add libraries
 add_subdirectory(libaos)
