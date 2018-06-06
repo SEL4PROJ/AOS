@@ -1,4 +1,7 @@
 /*
+ * @TAG(OTHER_MIT)
+ */
+/*
  * The MIT License (MIT)
  *
  * Copyright (c) 2013 Philip Thrasher

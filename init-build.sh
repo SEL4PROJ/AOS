@@ -5,12 +5,11 @@
 # ABN 41 687 119 230.
 #
 # This software may be distributed and modified according to the terms of
-# the BSD 2-Clause license. Note that NO WARRANTY is provided.
-# See "LICENSE_BSD2.txt" for details.
+# the GNU General Public License version 2. Note that NO WARRANTY is provided.
+# See "LICENSE_GPLv2.txt" for details.
 #
-# @TAG(DATA61_BSD)
+# @TAG(DATA61_GPL)
 #
-
 # This script is intended to be symlinked into the same location as your root CMakeLists.txt file
 # and then invoked from a clean build directory
 
