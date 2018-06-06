@@ -46,9 +46,14 @@ static inline unsigned long bf_first_free(size_t words, unsigned long bits[words
     for (; i < words && bits[i] == ULONG_MAX; i++);
 
     unsigned long bit = i * WORD_BITS;
+
+    /* we want to find the first 0 bit, do this by inverting the value */
+    unsigned long val = ~bits[i];
     /* it's illegal to call CLZL on 0, so check first */
-    if (i < words && bits[i] > 0) {
-        bit += (WORD_BITS - CLZL(bits[i]));
+    assert(val != 0);
+
+    if (i < words) {
+        bit += (CTZL(val));
     }
     return bit;
 }

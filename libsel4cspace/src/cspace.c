@@ -74,7 +74,7 @@ static void refill_watermark(cspace_t *cspace, seL4_Word *used)
     for (int i = 0; i < WATERMARK_SLOTS; i++) {
         if (*used & BIT(i)) {
             cspace->watermark[i] = cspace_alloc_slot(cspace);
-            ZF_LOGW_IF(cspace->watermark[i] != seL4_CapNull, "Cspace full in watermark function");
+            ZF_LOGW_IF(cspace->watermark[i] == seL4_CapNull, "Cspace full in watermark function");
             break;
         }
     }
@@ -124,7 +124,7 @@ static bool ensure_levels(cspace_t *cspace, seL4_CPtr cptr, int n_slots, seL4_Wo
 
     assert(cspace->bot_lvl_nodes[node] != NULL);
     seL4_Word cnode = CNODE_INDEX(cptr);
-    if (cspace->bot_lvl_nodes[node]->n_cnodes < cnode) {
+    if (cspace->bot_lvl_nodes[node]->n_cnodes <= cnode) {
         /* need to allocate a new cnode */
         seL4_CPtr ut_cptr;
         cspace->bot_lvl_nodes[node]->cnodes[cnode].untyped = alloc_4k_untyped(&cspace->alloc, &ut_cptr);
@@ -321,8 +321,8 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
         cptr = top_index << CNODE_SLOT_BITS(CNODE_SIZE_BITS);
 
         /* ensure the bottom level cnode is present */
-        if (cspace->n_bot_lvl_nodes < NODE_INDEX(cptr) ||
-                cspace->bot_lvl_nodes[NODE_INDEX(cptr)]->n_cnodes < CNODE_INDEX(cptr)) {
+        if (cspace->n_bot_lvl_nodes <= NODE_INDEX(cptr) ||
+            cspace->bot_lvl_nodes[NODE_INDEX(cptr)]->n_cnodes <= CNODE_INDEX(cptr)) {
             if (!ensure_levels(cspace, cptr, MAPPING_SLOTS, &used)) {
                 return seL4_CapNull;
             }
@@ -331,13 +331,13 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
         /* now allocate a bottom level index */
         bot_lvl_t *bot_lvl = &cspace->bot_lvl_nodes[NODE_INDEX(cptr)]->cnodes[CNODE_INDEX(cptr)];
         seL4_Word bot_index = bf_first_free(BITFIELD_SIZE(CNODE_SIZE_BITS), bot_lvl->bf);
-        if (bot_index == CNODE_SLOTS(CNODE_SIZE_BITS)) {
+        if (bot_index >= CNODE_SLOTS(CNODE_SIZE_BITS)) {
             ZF_LOGE("Cspace is full!\n");
             return seL4_CapNull;
         }
 
         bf_set_bit(bot_lvl->bf, bot_index);
-        if (bot_index == CNODE_SLOTS(CNODE_SIZE_BITS) - 1) {
+        if (bot_index >= CNODE_SLOTS(CNODE_SIZE_BITS) - 1) {
             /* we just allocated the last slot -> mark the top level as full */
             bf_set_bit(cspace->top_bf, top_index);
         }
