@@ -30,6 +30,7 @@
 #include "mapping.h"
 #include "elfload.h"
 #include "syscalls.h"
+#include "tests.h"
 
 #include <aos/vsyscall.h>
 
@@ -472,6 +473,9 @@ int main(void)
 
     /* Initialise the cspace manager, ut manager and dma */
     sos_bootstrap(&cspace, boot_info);
+
+    /* run sos initialisation tests */
+    run_tests(&cspace);
 
     /* Initialise other system compenents here */
     seL4_CPtr ipc_ep, ntfn;
