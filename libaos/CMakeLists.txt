@@ -14,11 +14,7 @@ cmake_minimum_required(VERSION 3.7.2)
 
 project(libaos C)
 
-file(GLOB deps src/*.c)
-
-list(SORT deps)
-
-add_library(aos EXCLUDE_FROM_ALL ${deps})
+add_library(aos EXCLUDE_FROM_ALL src/debug.c src/strerror.c src/vsyscall.c)
 target_include_directories(aos PUBLIC include)
 target_link_libraries(aos Configuration muslc sel4 utils)
 

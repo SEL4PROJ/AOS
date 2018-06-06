@@ -36,9 +36,6 @@ config_string(SosGateway SOS_GATEWAY
 
 add_config_library(sos "${configure_string}")
 
-# source files in sos
-file (GLOB static src/*.c crt/*.S src/sys/*.c)
-
 # warn about everything
 add_compile_options(-Wall -Werror -W -Wextra)
 
@@ -46,7 +43,10 @@ add_compile_options(-Wall -Werror -W -Wextra)
 get_property(apps GLOBAL PROPERTY apps_property)
 MakeCPIO(archive.o "${apps}")
 
-add_executable(sos EXCLUDE_FROM_ALL ${static} archive.o)
+# add any new c files here
+add_executable(sos EXCLUDE_FROM_ALL crt/sel4_crt0.S src/bootstrap.c src/dma.c src/elf.c src/main.c
+               src/mapping.c src/network.c src/ut.c src/sys/backtrace.c src/sys/sys_exit.c
+               src/sys/sys_morecore.c src/sys/sys_stdio.c src/sys/sys_thread.c archive.o)
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(sos Configuration muslc sel4 elf cpio ethdrivers serial clock sel4cspace platsupport aos utils sosapi)
 

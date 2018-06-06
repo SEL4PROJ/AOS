@@ -16,8 +16,7 @@ project(tty_test C)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -u __vsyscall_ptr")
 
-file(GLOB deps src/*.c)
-add_executable(tty_test EXCLUDE_FROM_ALL ${deps})
+add_executable(tty_test EXCLUDE_FROM_ALL src/ttyout.c src/tty_test.c)
 target_include_directories(tty_test PRIVATE include)
 target_link_libraries(tty_test muslc sel4 sosapi)
 

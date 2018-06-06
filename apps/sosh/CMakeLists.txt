@@ -16,8 +16,7 @@ project(sosh C)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -u __vsyscall_ptr")
 
-file(GLOB deps src/*.c)
-add_executable(sosh EXCLUDE_FROM_ALL ${deps})
+add_executable(sosh EXCLUDE_FROM_ALL src/benchmark.c src/sosh.c)
 target_include_directories(sosh PRIVATE include)
 target_link_libraries(sosh muslc sel4 sosapi utils)
 

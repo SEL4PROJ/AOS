@@ -14,10 +14,7 @@ cmake_minimum_required(VERSION 3.7.2)
 
 project(libnfs C)
 
-file(GLOB deps src/*.c)
-
-list(SORT deps)
-
-add_library(nfs EXCLUDE_FROM_ALL ${deps})
+add_library(nfs EXCLUDE_FROM_ALL src/mountd.c src/nfs.c src/nfs_test.c src/pbuf_helpers.c
+            src/portmapper.c src/rpc.c src/time.c)
 target_include_directories(nfs PUBLIC include)
 target_link_libraries(nfs Configuration muslc sel4 lwip)
