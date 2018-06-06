@@ -51,11 +51,10 @@ set(KernelNumDomains 1 CACHE STRING "")
 # just 1 core
 set(KernelMaxNumNodes 1 CACHE STRING "")
 
-# set up our build type + flags
+# turn on all the nice features for debugging
+# TODO for benchmarking, you should turn these OFF.
 set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
-
-# turn on all the nice kernel features for debugging
 set(KernelVerificationBuild OFF CACHE BOOL "" FORCE)
-set(KernelIRQReporting ON CACHE BOOL "")
+set(KernelIRQReporting ON CACHE BOOL "" FORCE)
 set(KernelPrinting ON CACHE BOOL "" FORCE)
 set(KernelDebugBuild ON CACHE BOOL "" FORCE)
