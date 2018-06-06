@@ -30,7 +30,7 @@
 #include "vmem_layout.h"
 
 /* top level cspace node size, for the root cnode, in bits, where size = 2^bits */
-#define INITIAL_TASK_CNODE_SIZE_BITS 14u
+#define INITIAL_TASK_CNODE_SIZE_BITS 18u
 
 /* extra cspace info for the initial bootstrapped cspace */
 typedef struct {
