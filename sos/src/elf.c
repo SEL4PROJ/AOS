@@ -17,10 +17,11 @@
 #include <string.h>
 #include <assert.h>
 #include <cspace/cspace.h>
-#include <elfload.h>
-#include <vmem_layout.h>
-#include <ut.h>
-#include <mapping.h>
+
+#include "vmem_layout.h"
+#include "ut.h"
+#include "mapping.h"
+#include "elfload.h"
 
 /*
  * Convert ELF permissions into seL4 permissions.
