@@ -129,6 +129,7 @@ static bool ensure_levels(cspace_t *cspace, seL4_CPtr cptr, int n_slots, seL4_Wo
         seL4_CPtr ut_cptr;
         cspace->bot_lvl_nodes[node]->cnodes[cnode].untyped = alloc_4k_untyped(&cspace->alloc, &ut_cptr);
         if (cspace->bot_lvl_nodes[node]->cnodes[cnode].untyped == NULL) {
+            ZF_LOGE("Failed to alloc 2nd level cnode");
             return false;
         }
         /* retype directly into the top level cnode */
@@ -373,10 +374,10 @@ void cspace_free_slot(cspace_t *cspace, seL4_CPtr cptr)
             if (cspace->bot_lvl_nodes[node]->n_cnodes > cnode) {
                 bf_clr_bit(cspace->bot_lvl_nodes[node]->cnodes[cnode].bf, BOT_LVL_INDEX(cptr));
             } else {
-                ZF_LOGE("Attempting to free unallocated cptr!");
+                ZF_LOGE("Attempting to free unallocated cptr %lx", cptr);
             }
         } else {
-            ZF_LOGE("Attempting to free unallocated cptr!");
+            ZF_LOGE("Attempting to free unallocated cptr %lx!", cptr);
         }
     }
 }
