@@ -26,7 +26,6 @@ add_subdirectory(sos)
 # add libraries
 add_subdirectory(libaos)
 add_subdirectory(libclock)
-add_subdirectory(libnfs)
 add_subdirectory(libsel4cspace)
 add_subdirectory(libserial)
 add_subdirectory(libsosapi)

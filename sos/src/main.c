@@ -20,7 +20,6 @@
 
 #include <clock/clock.h>
 #include <cpio/cpio.h>
-#include <nfs/nfs.h>
 #include <elf/elf.h>
 #include <serial/serial.h>
 
@@ -83,7 +82,6 @@ static struct {
 /**
  * NFS mount point
  */
-extern fhandle_t mnt_point;
 
 void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
 {
