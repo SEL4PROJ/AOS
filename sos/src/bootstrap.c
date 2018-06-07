@@ -202,6 +202,9 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
      * requirements, up until the frame table is created*/
     n_slots += calculate_ut_caps(bi, seL4_PageBits);
 
+    /* subtract what we don't need for dma */
+    n_slots -= BIT(SOS_DMA_SIZE_BITS - seL4_PageBits);
+
     /* now work out how many 2nd level nodes are required - with a buffer */
     size_t n_cnodes = n_slots / CNODE_SLOTS(CNODE_SIZE_BITS) + 2;
     ZF_LOGD("%zu slots needed, %zu cnodes", n_slots, n_cnodes);
