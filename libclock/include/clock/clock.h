@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include <sel4/sel4.h>
+#include <clock/timestamp.h>
 
 /*
  * Return codes for driver functions
