@@ -26,6 +26,7 @@
 
 #include "bootstrap.h"
 #include "network.h"
+#include "drivers/uart.h"
 #include "ut.h"
 #include "vmem_layout.h"
 #include "mapping.h"
@@ -477,6 +478,17 @@ int main(void)
 
     /* run sos initialisation tests */
     run_tests(&cspace);
+
+    /* switch to the real uart to output (rather than seL4_DebugPutChar, which only works if the
+     * kernel is built with support for printing, and is much slower, as each character print
+     * goes via the kernel)
+     *
+     * NOTE we share this uart with the kernel when the kernel is in debug mode. */
+    uart_init(&cspace);
+    update_vputchar(uart_putchar);
+
+    /* test print */
+    printf("SOS Started!");
 
     /* Initialise other system compenents here */
     seL4_CPtr ipc_ep, ntfn;

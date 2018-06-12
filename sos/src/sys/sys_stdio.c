@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <utils/util.h>
 
 #include <sel4/sel4.h>
 
@@ -28,21 +29,34 @@
 #include <sys/types.h>
 #include <sys/syscall.h>
 
+#include "../drivers/uart.h"
+#include "../syscalls.h"
+
 #define STDOUT_FD 1
 #define STDERR_FD 2
 
-static size_t sel4_write(void *data, size_t count)
+static void debug_put_char(UNUSED char c)
 {
 #if CONFIG_DEBUG_BUILD
-    size_t i;
-    char *realdata = data;
-    for (i = 0; i < count; i++) {
-        seL4_DebugPutChar(realdata[i]);
-    }
-#else
-    (void)data;
+    seL4_DebugPutChar(c);
 #endif
-    return count;
+}
+
+static vputchar_t vputchar = debug_put_char;
+
+static size_t output(void *data, size_t count)
+{
+    char *realdata = data;
+    size_t i;
+    for (i = 0; i < count; i++) {
+        vputchar(realdata[i]);
+    }
+    return i;
+}
+
+void update_vputchar(vputchar_t v)
+{
+    vputchar = v;
 }
 
 long
@@ -77,7 +91,7 @@ sys_writev(va_list ap)
     /* Write the buffer to console if the fd is for stdout or stderr. */
     if (fildes == STDOUT_FD || fildes == STDERR_FD) {
         for (int i = 0; i < iovcnt; i++) {
-            ret += sel4_write(iov[i].iov_base, iov[i].iov_len);
+            ret += output(iov[i].iov_base, iov[i].iov_len);
         }
     } else {
         assert(!"Not implemented");
