@@ -25,3 +25,8 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi);
  * to be able to free.
  */
 void *bootstrap_map_frame(cspace_t *cspace, seL4_CPtr cap);
+
+/* these are exported for the tests to use */
+void *bootstrap_cspace_map_frame(void *cookie, seL4_CPtr cap, seL4_CPtr free_slots[MAPPING_SLOTS], seL4_Word *used);
+void *bootstrap_cspace_alloc_4k_ut(void *cookie, seL4_CPtr *cap);
+void bootstrap_cspace_free_4k_ut(void *cookie, void *untyped);

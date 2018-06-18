@@ -133,7 +133,7 @@ void *bootstrap_map_frame(cspace_t *cspace, seL4_CPtr cap)
 }
 
 /* cspace allocation functions for the bootstrapped cspace */
-void *cspace_map_frame(UNUSED void *cookie, seL4_CPtr cap, seL4_CPtr free_slots[MAPPING_SLOTS],
+void *bootstrap_cspace_map_frame(UNUSED void *cookie, seL4_CPtr cap, seL4_CPtr free_slots[MAPPING_SLOTS],
                        seL4_Word *used)
 {
     seL4_Error err = map_frame_cspace(cap, bootstrap_data.vspace, bootstrap_data.next_free_vaddr,
@@ -142,14 +142,14 @@ void *cspace_map_frame(UNUSED void *cookie, seL4_CPtr cap, seL4_CPtr free_slots[
 }
 
 
-static void *cspace_alloc_4k_ut(UNUSED void *cookie, seL4_CPtr *cap)
+void *bootstrap_cspace_alloc_4k_ut(UNUSED void *cookie, seL4_CPtr *cap)
 {
     ut_t *untyped = ut_alloc_4k_untyped(NULL);
     *cap = untyped->cap;
     return untyped;
 }
 
-static void cspace_free_4k_ut(UNUSED void *cookie, void *untyped)
+void bootstrap_cspace_free_4k_ut(UNUSED void *cookie, void *untyped)
 {
     ut_free(untyped, seL4_PageBits);
 }
@@ -382,9 +382,9 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     cspace->n_bot_lvl_nodes = 0;
     cspace->bot_lvl_nodes = bot_lvl_nodes;
     cspace->alloc = (cspace_alloc_t) {
-        .map_frame = cspace_map_frame,
-         .alloc_4k_ut = cspace_alloc_4k_ut,
-          .free_4k_ut = cspace_free_4k_ut,
+        .map_frame = bootstrap_cspace_map_frame,
+         .alloc_4k_ut = bootstrap_cspace_alloc_4k_ut,
+          .free_4k_ut = bootstrap_cspace_free_4k_ut,
            .cookie = cspace
     };
 
