@@ -86,6 +86,7 @@ static void init_bot_lvl_node(cspace_t *cspace, int node, void *untyped, seL4_CP
 
     /* now track all the data in the frame */
     cspace->n_bot_lvl_nodes++;
+    memset(cspace->bot_lvl_nodes[node], 0, sizeof(bot_lvl_node_t));
     cspace->bot_lvl_nodes[node]->n_cnodes = 0;
     cspace->bot_lvl_nodes[node]->untyped = untyped;
     cspace->bot_lvl_nodes[node]->frame = frame;
@@ -157,7 +158,7 @@ static int cspace_create(cspace_t *cspace, cspace_t *target, bool two_level, csp
     target->alloc = cspace_alloc;
     target->top_lvl_size_bits = CNODE_SIZE_BITS;
     /* the top level bf is small, so malloc this memory */
-    target->top_bf = calloc(1, BITFIELD_SIZE(target->top_lvl_size_bits));
+    target->top_bf = calloc(1, sizeof(seL4_Word) * BITFIELD_SIZE(target->top_lvl_size_bits));
     if (target->top_bf == NULL) {
         ZF_LOGE("Malloc out of memory");
         return CSPACE_ERROR;
@@ -282,8 +283,10 @@ void cspace_destroy(cspace_t *cspace)
     }
 
     /* free all the bottom level nodes and book keeping */
+    seL4_CPtr last = 0;
     for (int i = 0; i < cspace->n_bot_lvl_nodes; i++) {
         for (int j = 0; j < cspace->bot_lvl_nodes[i]->n_cnodes; j++) {
+            last = i * BOT_LVL_PER_NODE + j;
             free_4k_untyped(&cspace->alloc, cspace->bot_lvl_nodes[i]->cnodes[j].untyped);
         }
 
@@ -291,8 +294,14 @@ void cspace_destroy(cspace_t *cspace)
         cspace_delete(cspace, cspace->bot_lvl_nodes[i]->frame);
     }
 
+    /* now delete the cnodes */
+    for (int i = 0; i <= last; i++) {
+        seL4_CNode_Delete(cspace->root_cnode, i, seL4_WordBits - (CNODE_SIZE_BITS - seL4_SlotBits));
+    }
+
     /* free the top level cnode */
     if (cspace->root_cnode != seL4_CapNull) {
+        /* delete everything in every cnode */
         cspace_delete(cspace->bootstrap, cspace->root_cnode);
         cspace_free_slot(cspace->bootstrap, cspace->root_cnode);
     }
@@ -315,7 +324,7 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
 {
     assert(cspace != NULL);
     seL4_Word top_index = bf_first_free(BITFIELD_SIZE(cspace->top_lvl_size_bits), cspace->top_bf);
-    if (top_index == CNODE_SLOTS(cspace->top_lvl_size_bits)) {
+    if (top_index > CNODE_SLOTS(cspace->top_lvl_size_bits)) {
         ZF_LOGE("Cspace is full!\n");
         return seL4_CapNull;
     }
@@ -337,13 +346,13 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
         /* now allocate a bottom level index */
         bot_lvl_t *bot_lvl = &cspace->bot_lvl_nodes[NODE_INDEX(cptr)]->cnodes[CNODE_INDEX(cptr)];
         seL4_Word bot_index = bf_first_free(BITFIELD_SIZE(CNODE_SIZE_BITS), bot_lvl->bf);
-        if (bot_index >= CNODE_SLOTS(CNODE_SIZE_BITS)) {
+        if (bot_index == CNODE_SLOTS(CNODE_SIZE_BITS)) {
             ZF_LOGE("Cspace is full!\n");
             return seL4_CapNull;
         }
 
         bf_set_bit(bot_lvl->bf, bot_index);
-        if (bot_index >= CNODE_SLOTS(CNODE_SIZE_BITS) - 1) {
+        if (bot_index == CNODE_SLOTS(CNODE_SIZE_BITS) - 1) {
             /* we just allocated the last slot -> mark the top level as full */
             bf_set_bit(cspace->top_bf, top_index);
         }
