@@ -107,12 +107,13 @@ static bool ensure_levels(cspace_t *cspace, seL4_CPtr cptr, int n_slots, seL4_Wo
         *used |= BIT(MAPPING_SLOTS);
         void *untyped = retype_helper(cspace, seL4_ARM_SmallPageObject, frame);
         if (untyped == NULL) {
+            ZF_LOGE("Failed to retype");
             return false;
         }
         /* map the book keeping frame */
         cspace->bot_lvl_nodes[node] = map_frame(&cspace->alloc, frame, cspace->watermark, used);
         if (cspace->bot_lvl_nodes[node] == NULL) {
-            ZF_LOGD("bot lvl node allocation failed");
+            ZF_LOGE("bot lvl node allocation failed");
             cspace_delete(cspace, frame);
             *used &= ~BIT(MAPPING_SLOTS);
             free_4k_untyped(&cspace->alloc, untyped);
