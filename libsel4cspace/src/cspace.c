@@ -213,30 +213,32 @@ static int cspace_create(cspace_t *cspace, cspace_t *target, bool two_level, csp
     cspace_free_slot(cspace, tmp);
 
     /* ensure the cspace levels are there for our first free slot */
+
+    seL4_Word bot_lvl_node = 0;
     if (target->two_level) {
         /* allocate the first bottom level node */
-        seL4_CPtr slot = cspace_alloc_slot(cspace);
-        if (slot == seL4_CapNull) {
-            cspace_destroy(cspace);
-            return CSPACE_ERROR;
-        }
-
-        void *untyped = retype_helper(cspace, seL4_ARM_SmallPageObject, slot);
-        if (untyped == NULL) {
+        bot_lvl_node = cspace_alloc_slot(cspace);
+        if (bot_lvl_node == seL4_CapNull) {
+            ZF_LOGE("Failed to alloc slot");
             cspace_destroy(target);
-            cspace_free_slot(cspace, slot);
             return CSPACE_ERROR;
         }
 
-        target->bot_lvl_nodes[0] = map_frame(&cspace->alloc, slot, 0, NULL);
-        if (target->bot_lvl_nodes[0] == NULL) {
+        void *untyped = retype_helper(cspace, seL4_ARM_SmallPageObject, bot_lvl_node);
+        if (untyped != NULL) {
+            seL4_Word used = 0;
+            target->bot_lvl_nodes[0] = map_frame(&cspace->alloc, bot_lvl_node, cspace->watermark, &used);
+            refill_watermark(cspace, &used);
+        }
+
+        if (target->bot_lvl_nodes[0] == NULL || untyped == NULL) {
             cspace_destroy(target);
-            cspace_delete(cspace, slot);
-            cspace_free_slot(cspace, slot);
+            cspace_delete(cspace, bot_lvl_node);
+            cspace_free_slot(cspace, bot_lvl_node);
             return CSPACE_ERROR;
         }
 
-        init_bot_lvl_node(target, 0, untyped, slot);
+        init_bot_lvl_node(target, 0, untyped, bot_lvl_node);
     }
 
     /* now allocate the first slot, to avoid handing out seL4_CapNull */
@@ -247,6 +249,14 @@ static int cspace_create(cspace_t *cspace, cspace_t *target, bool two_level, csp
         /* finally, allocate our watermark slots */
         seL4_Word mask = MASK(WATERMARK_SLOTS);
         refill_watermark(target, &mask);
+
+        /* move the bottom level node we allocated for bootstrapping from the bootstrap cspace to the target */
+        seL4_CPtr slot = cspace_alloc_slot(target);
+        assert(slot != seL4_CapNull);
+        seL4_Error err = cspace_move(target, slot, cspace, bot_lvl_node);
+        assert(err == seL4_NoError);
+        target->bot_lvl_nodes[0]->frame = slot;
+        cspace_free_slot(cspace, bot_lvl_node);
     }
 
     ZF_LOGD("Finished creating new cspace");
@@ -277,14 +287,8 @@ void cspace_destroy(cspace_t *cspace)
             free_4k_untyped(&cspace->alloc, cspace->bot_lvl_nodes[i]->cnodes[j].untyped);
         }
 
-        if (i == 0) {
-            /* this one was allocated by the bootstrap cspace */
-            cspace_delete(cspace->bootstrap, cspace->bot_lvl_nodes[i]->frame);
-            cspace_free_slot(cspace->bootstrap, cspace->bot_lvl_nodes[i]->frame);
-            free_4k_untyped(&cspace->bootstrap->alloc, cspace->bot_lvl_nodes[i]->untyped);
-        } else {
-            free_4k_untyped(&cspace->alloc, cspace->bot_lvl_nodes[i]->untyped);
-        }
+        free_4k_untyped(&cspace->alloc, cspace->bot_lvl_nodes[i]->untyped);
+        cspace_delete(cspace, cspace->bot_lvl_nodes[i]->frame);
     }
 
     /* free the top level cnode */
