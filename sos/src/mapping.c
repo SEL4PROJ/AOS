@@ -168,6 +168,7 @@ void *sos_map_device(cspace_t *cspace, uintptr_t addr, size_t size)
         seL4_Error err = cspace_untyped_retype(cspace, ut->cap, frame, seL4_ARM_SmallPageObject,
                                                seL4_PageBits);
         if (err != seL4_NoError) {
+            ZF_LOGE("Failed to retype %lx", ut->cap);
             cspace_free_slot(cspace, frame);
             return NULL;
         }
@@ -175,6 +176,7 @@ void *sos_map_device(cspace_t *cspace, uintptr_t addr, size_t size)
         /* map */
         err = map_frame(cspace, frame, seL4_CapInitThreadVSpace, device_virt, seL4_AllRights, false);
         if (err != seL4_NoError) {
+            ZF_LOGE("Failed to map device frame at %p", (void *) device_virt);
             cspace_delete(cspace, frame);
             cspace_free_slot(cspace, frame);
         }
