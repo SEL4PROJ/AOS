@@ -92,7 +92,7 @@ static seL4_Error map_frame_impl(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPt
 
         /* figure out which cptr to use to retype into*/
         seL4_CPtr slot;
-        if (cspace == NULL) {
+        if (used != NULL) {
             slot = free_slots[i];
             *used |= BIT(i);
         } else {
@@ -126,15 +126,15 @@ static seL4_Error map_frame_impl(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPt
     return err;
 }
 
-seL4_Error map_frame_cspace(seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
+seL4_Error map_frame_cspace(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
                             seL4_CapRights_t rights, seL4_ARM_VMAttributes attr,
                             seL4_CPtr free_slots[MAPPING_SLOTS], seL4_Word *used)
 {
-    if (used == NULL || free_slots == NULL) {
+    if (cspace == NULL) {
         ZF_LOGE("Invalid arguments");
         return -1;
     }
-    return map_frame_impl(NULL, frame_cap, vspace, vaddr, rights, attr, free_slots, used);
+    return map_frame_impl(cspace, frame_cap, vspace, vaddr, rights, attr, free_slots, used);
 }
 
 seL4_Error map_frame(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
@@ -148,6 +148,7 @@ static uintptr_t device_virt = SOS_DEVICE_START;
 
 void *sos_map_device(cspace_t *cspace, uintptr_t addr, size_t size)
 {
+    assert(cspace != NULL);
     void *vstart = (void *) device_virt;
 
     for (uintptr_t curr = addr; curr < (addr + size); curr += PAGE_SIZE_4K) {
@@ -179,6 +180,7 @@ void *sos_map_device(cspace_t *cspace, uintptr_t addr, size_t size)
             ZF_LOGE("Failed to map device frame at %p", (void *) device_virt);
             cspace_delete(cspace, frame);
             cspace_free_slot(cspace, frame);
+            return NULL;
         }
 
         device_virt += PAGE_SIZE_4K;

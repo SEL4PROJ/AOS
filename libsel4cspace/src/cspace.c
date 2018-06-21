@@ -295,7 +295,7 @@ void cspace_destroy(cspace_t *cspace)
     }
 
     /* now delete the cnodes */
-    for (int i = 0; i <= last; i++) {
+    for (int i = 0; cspace->two_level && i <= last; i++) {
         seL4_CNode_Delete(cspace->root_cnode, i, seL4_WordBits - (CNODE_SIZE_BITS - seL4_SlotBits));
     }
 

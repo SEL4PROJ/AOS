@@ -133,10 +133,10 @@ void *bootstrap_map_frame(cspace_t *cspace, seL4_CPtr cap)
 }
 
 /* cspace allocation functions for the bootstrapped cspace */
-void *bootstrap_cspace_map_frame(UNUSED void *cookie, seL4_CPtr cap, seL4_CPtr free_slots[MAPPING_SLOTS],
+void *bootstrap_cspace_map_frame(void *cookie, seL4_CPtr cap, seL4_CPtr free_slots[MAPPING_SLOTS],
                        seL4_Word *used)
 {
-    seL4_Error err = map_frame_cspace(cap, bootstrap_data.vspace, bootstrap_data.next_free_vaddr,
+    seL4_Error err = map_frame_cspace((cspace_t *) cookie, cap, bootstrap_data.vspace, bootstrap_data.next_free_vaddr,
                                       seL4_AllRights, seL4_ARM_Default_VMAttributes, free_slots, used);
     return alloc_vaddr(err);
 }

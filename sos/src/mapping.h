@@ -31,17 +31,18 @@
  * you'll need to modify this function, or write a new one, that stores the intermediate structures, such that
  * they can be deleted later.
  *
+ * @param cspace          CSpace which can be used to retype slots.
  * @param frame_cap       A capbility to the frame to be mapped (seL4_ARM_SmallPageObject).
  * @param vspace          A capability to the vspace (seL4_ARM_PageGlobalDirectoryObject).
  * @param vaddr           The virtual address to map the frame.
  * @param rights          The access rights for the mapping
  * @param attr            The VM attributes to use for the mapping
- * @param free_slots      free slots to use in case paging structures must be allocated.
+ * @param free_slots      free slots in cspace to use in case paging structures must be allocated.
  * @param[out] used       the function will mark each bit for each slot used.
  *                        e.g if slot 0 is used, BIT(0) in used will be set.
  * @return 0 on success
  */
-seL4_Error map_frame_cspace(seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
+seL4_Error map_frame_cspace(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr,
                             seL4_CapRights_t rights, seL4_ARM_VMAttributes attr,
                             seL4_CPtr free_slots[MAPPING_SLOTS], seL4_Word *used);
 
@@ -73,7 +74,7 @@ seL4_Error map_frame(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, se
  *
  * @param cspace cspace to use to allocate slots
  * @param addr   physical address of the device
- * @param size   size of the device
+ * @param size   size of the device in bytes
  * @return address that the device is mapped at.
  * */
 void *sos_map_device(cspace_t *cspace, uintptr_t addr, size_t size);
