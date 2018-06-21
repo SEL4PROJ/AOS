@@ -28,9 +28,6 @@
 long sys_nanosleep(va_list ap)
 {
     struct timespec *req = va_arg(ap, struct timespec*);
-    struct timespec *rem = va_arg(ap, struct timespec*);
-    /* We ignore the remaining since we will always wait the full time */
-    (void)rem;
     /* construct a sleep call */
     int millis = req->tv_sec * MS_IN_S;
     millis += req->tv_nsec / NS_IN_MS;
