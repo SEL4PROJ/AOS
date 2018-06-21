@@ -34,7 +34,7 @@ add_subdirectory(libsosapi)
 # set the variables for the AOS platform
 set(KernelArch arm CACHE STRING "" FORCE)
 set(KernelArmSel4Arch "aarch64" CACHE STRING "" FORCE)
-set(KernelARMPlatform "hikey" CACHE STRING "" FORCE)
+set(KernelARMPlatform "odroidc2" CACHE STRING "" FORCE)
 
 # export the generic timer virtual count for delay functions
 set(KernelArmExportVCNTUser ON CACHE BOOL "" FORCE)
