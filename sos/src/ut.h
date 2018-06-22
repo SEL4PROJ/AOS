@@ -32,9 +32,14 @@ typedef struct {
 
 /* a specific untyped */
 typedef struct ut ut_t;
-struct ut {
+PACKED struct ut {
     seL4_CPtr cap;
-    ut_t *next;
+    /* 64-bit addresses are only 48 bits, and seL4 user-space is restricted to only
+     * have addresses such that the high bits will always be 0, so we can use spare upper
+     * bits to store flags */
+    uintptr_t next : 48; // pointer to next item in list
+    int valid  : 1; // is this entry valid or not
+    int unused : 15; // spare bits
 };
 
 /* list of valid object sizes we can allocate */

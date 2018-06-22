@@ -23,14 +23,14 @@ static ut_table_t table;
 
 static void push(ut_t **head, ut_t *new)
 {
-    new->next = *head;
+    new->next = (uintptr_t) *head;
     *head = new;
 }
 
 static ut_t *pop(ut_t **head)
 {
     ut_t *popped = *head;
-    *head = (*head)->next;
+    *head = (ut_t *) (uintptr_t) (*head)->next;
     return popped;
 }
 
@@ -64,6 +64,7 @@ void ut_add_untyped_range(seL4_Word paddr, seL4_CPtr cap, size_t n, bool device)
     for (size_t i = 0; i < n; i++) {
         ut_t *node = paddr_to_ut(paddr + (i * PAGE_SIZE_4K));
         node->cap = cap;
+        node->valid = 1;
         cap++;
         if (!device) {
             push(list, node);
@@ -90,7 +91,7 @@ ut_t *ut_alloc_4k_untyped(uintptr_t *paddr)
 /* ensure there are at least two spare free structures so we can split an untyped */
 static bool ensure_new_structures(cspace_t *cspace)
 {
-    if (table.free_structures == NULL || table.free_structures->next == NULL) {
+    if (table.free_structures == NULL || table.free_structures->next == 0) {
         /* we need to allocate more spare ut objects */
         ut_t *frame = ut_alloc_4k_untyped(NULL);
         if (frame == NULL) {
@@ -217,5 +218,10 @@ void ut_free(ut_t *node, size_t size_bits)
 
 ut_t *ut_alloc_4k_device(uintptr_t paddr)
 {
-    return paddr_to_ut(paddr);
+    ut_t *ut = paddr_to_ut(paddr);
+    if (!ut->valid) {
+        ZF_LOGE("No ut for paddr %p", (void *) paddr);
+        return NULL;
+    }
+    return ut;
 }
