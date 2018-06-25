@@ -17,7 +17,7 @@
 #include <bits/syscall.h>
 #include <utils/attribute.h>
 
-#define MUSLC_HIGHEST_SYSCALL 261
+#define MUSLC_HIGHEST_SYSCALL SYS_pkey_free
 #define MUSLC_NUM_SYSCALLS (MUSLC_HIGHEST_SYSCALL + 1)
 
 typedef long (*muslcsys_syscall_t)(va_list);
