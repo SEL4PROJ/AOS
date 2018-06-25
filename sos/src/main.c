@@ -449,7 +449,24 @@ void init_muslc(void)
     muslcsys_install_syscall(__NR_brk,  sys_brk);
     muslcsys_install_syscall(__NR_clock_gettime, sys_clock_gettime);
     muslcsys_install_syscall(__NR_nanosleep, sys_nanosleep);
-
+    muslcsys_install_syscall(__NR_getuid, sys_getuid);
+    muslcsys_install_syscall(__NR_getgid, sys_getgid);
+    muslcsys_install_syscall(__NR_openat, sys_openat);
+    muslcsys_install_syscall(__NR_close, sys_close);
+    muslcsys_install_syscall(__NR_socket, sys_socket);
+    muslcsys_install_syscall(__NR_bind, sys_bind);
+    muslcsys_install_syscall(__NR_listen, sys_listen);
+    muslcsys_install_syscall(__NR_connect, sys_connect);
+    muslcsys_install_syscall(__NR_accept, sys_accept);
+    muslcsys_install_syscall(__NR_sendto, sys_sendto);
+    muslcsys_install_syscall(__NR_recvfrom, sys_recvfrom);
+    muslcsys_install_syscall(__NR_readv, sys_readv);
+    muslcsys_install_syscall(__NR_getsockname, sys_getsockname);
+    muslcsys_install_syscall(__NR_getpeername, sys_getpeername);
+    muslcsys_install_syscall(__NR_fcntl, sys_fcntl);
+    muslcsys_install_syscall(__NR_setsockopt, sys_setsockopt);
+    muslcsys_install_syscall(__NR_getsockopt, sys_getsockopt);
+    muslcsys_install_syscall(__NR_ppoll, sys_ppoll);
 }
 
 /*
