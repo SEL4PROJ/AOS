@@ -64,8 +64,7 @@ void update_vputchar(vputchar_t v)
     vputchar = v;
 }
 
-long
-sys_writev(va_list ap)
+long sys_writev(va_list ap)
 {
     int fildes = va_arg(ap, int);
     struct iovec *iov = va_arg(ap, struct iovec *);
@@ -122,8 +121,7 @@ long sys_read(va_list ap)
     return readv(fd, &iov, 1);
 }
 
-long
-sys_ioctl(va_list ap)
+long sys_ioctl(va_list ap)
 {
     int fd = va_arg(ap, int);
     UNUSED int request = va_arg(ap, int);
