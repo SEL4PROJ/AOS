@@ -44,6 +44,7 @@ set(KernelArmExportPMUUser ON CACHE BOOL "" FORCE)
 
 # enable our networking libs
 set(LibPicotcp ON CACHE BOOL "" FORCE)
+set(LibPicotcpBsd ON CACHE BOOL "" FORCE)
 set(LibNfs ON CACHE BOOL "" FORCE)
 
 # Elfloader settings that correspond to how Data61 sets its boards up.

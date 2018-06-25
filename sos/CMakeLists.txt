@@ -37,7 +37,10 @@ config_string(SosGateway SOS_GATEWAY
 add_config_library(sos "${configure_string}")
 
 # warn about everything
-add_compile_options(-Wall -Werror -W -Wextra)
+add_compile_options(-Wall -W -Wextra)
+add_definitions(-DSTDSOCKET)
+add_definitions(-U__linux__)
+add_definitions(-D_SYS_POLL_H)
 
 # list of apps to include in the cpio archive
 get_property(apps GLOBAL PROPERTY apps_property)
@@ -49,7 +52,8 @@ add_executable(sos EXCLUDE_FROM_ALL crt/sel4_crt0.S src/bootstrap.c src/dma.c sr
                src/sys/sys_morecore.c src/sys/sys_stdio.c src/sys/sys_thread.c src/sys/sys_time.c
                src/drivers/uart.c archive.o)
 target_include_directories(sos PRIVATE "include")
-target_link_libraries(sos Configuration muslc sel4 elf cpio serial clock sel4cspace aos utils picotcp nfs)
+target_link_libraries(sos Configuration muslc sel4 elf cpio serial clock sel4cspace aos utils picotcp
+                      picotcp_bsd nfs)
 
 # Set this image as the rootserver
 DeclareRootserver(sos)
