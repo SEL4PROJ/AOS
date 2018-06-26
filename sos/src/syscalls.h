@@ -7,7 +7,6 @@ typedef void (*vputchar_t)(char c);
 void update_vputchar(vputchar_t vputchar);
 
 /* prototype all the syscalls we implement */
-long sys_set_thread_area(va_list ap);
 long sys_set_tid_address(va_list ap);
 long sys_exit(va_list ap);
 long sys_rt_sigprocmask(va_list ap);
