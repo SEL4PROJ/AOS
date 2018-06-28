@@ -67,3 +67,13 @@ seL4_Error map_frame_cspace(seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vad
  */
 seL4_Error map_frame(cspace_t *cspace, seL4_CPtr frame_cap, seL4_CPtr vspace, seL4_Word vaddr, seL4_CapRights_t rights,
                      seL4_ARM_VMAttributes attr);
+
+/*
+ * Map a device and return the virtual address it is mapped to.
+ *
+ * @param cspace cspace to use to allocate slots
+ * @param addr   physical address of the device
+ * @param size   size of the device
+ * @return address that the device is mapped at.
+ * */
+void *sos_map_device(cspace_t *cspace, uintptr_t addr, size_t size);
