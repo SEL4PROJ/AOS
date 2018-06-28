@@ -158,57 +158,21 @@ void *sos_dma_malloc(UNUSED void *cookie, size_t size, int align, int cached, UN
     ZF_LOGV("DMA: 0x%x\n", (uintptr_t) vaddr);
 
     /* Clean invalidate the range to prevent seL4 cache bombs */
-    sos_dma_cache_op(NULL, vaddr, size, DMA_CACHE_OP_CLEAN_INVALIDATE);
-    return vaddr;
+    sos_dma_cache_clean_invalidate(addr.vaddr, size);
+    return addr;
 }
 
-void sos_dma_free(UNUSED void *cookie, UNUSED void *addr, UNUSED size_t size)
+seL4_Error sos_dma_cache_invalidate(uintptr_t addr, size_t size)
 {
-    /* do not support free */
+    return seL4_ARM_PageGlobalDirectory_Invalidate_Data(dma.vspace, addr, addr + size);
 }
 
-uintptr_t sos_dma_pin(UNUSED void *cookie, void *addr, UNUSED size_t size)
+seL4_Error sos_dma_cache_clean(uintptr_t addr, size_t size)
 {
-    if ((uintptr_t)addr < SOS_DMA_VSTART || (uintptr_t)addr >= SOS_DMA_VEND) {
-        ZF_LOGE("Attempted to pin memory out of DMA range!");
-        return 0;
-    } else {
-        return virt_to_phys((uintptr_t)addr);
-    }
+    return seL4_ARM_PageGlobalDirectory_Clean_Data(dma.vspace, addr, addr + size);
 }
 
-void sos_dma_unpin(UNUSED void *cookie, UNUSED void *addr, UNUSED size_t size)
+seL4_Error sos_dma_cache_clean_invalidate(uintptr_t addr, size_t size)
 {
-    /* no op */
-}
-
-typedef seL4_Error (*sel4_cache_op_fn_t)(seL4_ARM_PageGlobalDirectory, seL4_Word, seL4_Word);
-
-static void
-cache_foreach(void *vaddr, int range, sel4_cache_op_fn_t proc)
-{
-    int error;
-    uintptr_t next;
-    uintptr_t end = (uintptr_t)(vaddr + range);
-    for (uintptr_t addr = (uintptr_t)vaddr; addr < end; addr = next) {
-        next = MIN(PAGE_ALIGN_4K(addr + PAGE_SIZE_4K), end);
-        error = proc(seL4_CapInitThreadPD, addr, next);
-        assert(!error);
-    }
-}
-
-void sos_dma_cache_op(UNUSED void *cookie, void *addr, size_t size, dma_cache_op_t op)
-{
-    /* everything is mapped uncached at the moment */
-    switch (op) {
-    case DMA_CACHE_OP_CLEAN:
-        cache_foreach(addr, size, seL4_ARM_PageGlobalDirectory_Clean_Data);
-        break;
-    case DMA_CACHE_OP_INVALIDATE:
-        cache_foreach(addr, size, seL4_ARM_PageGlobalDirectory_Invalidate_Data);
-        break;
-    case DMA_CACHE_OP_CLEAN_INVALIDATE:
-        cache_foreach(addr, size, seL4_ARM_PageGlobalDirectory_CleanInvalidate_Data);
-        break;
-    }
+    return seL4_ARM_PageGlobalDirectory_CleanInvalidate_Data(dma.vspace, addr, addr + size);
 }

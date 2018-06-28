@@ -28,7 +28,11 @@ int dma_init(cspace_t *cspace, size_t sizebits, seL4_CPtr vspace, seL4_CPtr ut, 
 
 
 void *sos_dma_malloc(void* cookie, size_t size, int align, int cached, ps_mem_flags_t flags);
-void sos_dma_free(void *cookie, void *addr, size_t size);
-uintptr_t sos_dma_pin(void *cookie, void *addr, size_t size);
-void sos_dma_unpin(void *cookie, void *addr, size_t size);
-void sos_dma_cache_op(void *cookie, void *addr, size_t size, dma_cache_op_t op);
+/* Cache operation functions.
+ * @param addr the start address to operate on.
+ * @param size amount in bytes to operate on.
+ * @return seL4_Error code that results from the invocation.
+ */
+seL4_Error sos_dma_cache_invalidate(uintptr_t addr, size_t size);
+seL4_Error sos_dma_cache_clean(uintptr_t addr, size_t size);
+seL4_Error sos_dma_cache_clean_invalidate(uintptr_t addr, size_t size);
