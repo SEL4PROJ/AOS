@@ -15,7 +15,7 @@
 #include "dma.h"
 #include "bootstrap.h"
 
-void test_bf_bit(unsigned long bit)
+static void test_bf_bit(unsigned long bit)
 {
     ZF_LOGV("%lu", bit);
     seL4_Word bitfield[2] = {0};
