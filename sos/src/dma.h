@@ -9,25 +9,35 @@
  *
  * @TAG(DATA61_BSD)
  */
-#include <platsupport/io.h>
 #include <cspace/cspace.h>
 
+typedef struct {
+    uintptr_t vaddr; // virtual  address of the allocated DMA memory
+    uintptr_t paddr; // physical address of the allocated DMA memory
+} dma_addr_t;
+
 /**
- * Initialises DMA memory for the network driver
+ * Initialises a pool of DMA memory.
  *
- * @param cspace       cspace that this allocator can use to allocate slots with and retype.
- *                     Not used to allocate slots in dma_init, just for dma_malloc.
- * @param sizebits     The size (1 << sizebits) bytes of the memory provided.
- * @param vspace       cptr to the vspace to use for mapping operations
- * @param ut           cptr to a ut that is sizebits in size and can be used to retype
- *                     4k untyped objects
- * @param pstart       The base physical address of the memory to use for DMA
+ * @param cspace       cspace that this allocator can use to allocate a slot with and
+ *                     retype the passed in untyped with. Only used in init.
+ * @param vspace       cptr to the vspace to use for mapping and cache operations.
+ * @param ut           cptr to a ut that is seL4_LargePageBits in size
+ * @param pstart       The base physical address of the ut
+ * @param vstart       Virtual address to map the large page
  * @return             0 on success
  */
-int dma_init(cspace_t *cspace, size_t sizebits, seL4_CPtr vspace, seL4_CPtr ut, uintptr_t pstart);
+int dma_init(cspace_t *cspace, seL4_CPtr vspace, seL4_CPtr ut, uintptr_t pstart, uintptr_t vstart);
 
+/**
+ * Allocate an amount of DMA memory.
+ *
+ * @param size in bytes to allocate
+ * @param align alignment to align start of address to
+ * @return a dma_addr_t representing the memory. On failure values will be 0.
+ */
+dma_addr_t sos_dma_malloc(size_t size, int align);
 
-void *sos_dma_malloc(void* cookie, size_t size, int align, int cached, ps_mem_flags_t flags);
 /* Cache operation functions.
  * @param addr the start address to operate on.
  * @param size amount in bytes to operate on.

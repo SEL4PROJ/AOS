@@ -346,9 +346,9 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     seL4_CPtr dma_ut = steal_untyped(bi, SOS_DMA_SIZE_BITS, &dma_paddr);
     ZF_LOGF_IF(dma_ut == seL4_CapNull, "Could not find DMA memory");
 
-    err = cspace_untyped_retype(cspace, dma_ut, first_free_slot, seL4_UntypedObject, SOS_DMA_SIZE_BITS);
+    err = cspace_untyped_retype(cspace, dma_ut, first_free_slot, seL4_ARM_LargePageObject, SOS_DMA_SIZE_BITS);
     ZF_LOGF_IFERR(err, "Failed to retype dma untyped");
-    dma_init(cspace, SOS_DMA_SIZE_BITS, seL4_CapInitThreadVSpace, first_free_slot, dma_paddr);
+    seL4_CPtr dma_cptr = first_free_slot;
     first_free_slot++;
 
     /* initialise the ut table */
@@ -410,6 +410,12 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
         cspace->n_bot_lvl_nodes++;
         first_free_slot++;
     }
+
+    /* we're done mapping things for the cspace, now place the dma region at the next large page boundary */
+    uintptr_t dma_vaddr = ALIGN_UP(bootstrap_data.next_free_vaddr + PAGE_SIZE_4K, BIT(seL4_LargePageBits));
+    err = dma_init(cspace, seL4_CapInitThreadVSpace, dma_cptr, dma_paddr, dma_vaddr);
+    ZF_LOGF_IF(err, "Failed to initialise DMA");
+    bootstrap_data.next_free_vaddr = dma_vaddr + BIT(seL4_LargePageBits) + PAGE_SIZE_4K;
 
     printf("First free slot %lu\n", first_free_slot);
     printf("N slots used %lu\n", ALIGN_DOWN(first_free_slot, slots_per_cnode));

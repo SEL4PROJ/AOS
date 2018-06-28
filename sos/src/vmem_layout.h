@@ -15,9 +15,8 @@
 
 /* Address where memory used for DMA starts getting mapped.
  * Do not use the address range between SOS_DMA_VSTART and SOS_DMA_VEND */
-#define SOS_DMA_VSTART       (0x10000000)
-#define SOS_DMA_SIZE_BITS    (22)
-#define SOS_DMA_VEND         (SOS_DMA_VSTART + (BIT(SOS_DMA_SIZE_BITS)))
+#define SOS_DMA_SIZE_BITS    (seL4_LargePageBits)
+
 #define SOS_SCRATCH          (0xA0000000)
 #define SOS_DEVICE_START     (0xB0000000)
 #define SOS_ELF_VMEM         (0xD0000000)
