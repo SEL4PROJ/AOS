@@ -12,6 +12,8 @@
 
 #define ZF_LOG_LEVEL ZF_LOG_INFO
 #include <cspace/cspace.h>
+#include "dma.h"
+#include "bootstrap.h"
 
 void test_bf_bit(unsigned long bit)
 {
@@ -92,6 +94,19 @@ static void test_cspace(cspace_t *cspace)
    free(slots);
 }
 
+static void test_dma(void)
+{
+    dma_addr_t dma = sos_dma_malloc(PAGE_SIZE_4K, PAGE_SIZE_4K);
+    char *blah = (char *) dma.vaddr;
+    for (size_t i = 0; i < PAGE_SIZE_4K; i++) {
+        blah[i] = 'a' + i % 25;
+    }
+
+    for (size_t i = 0; i < PAGE_SIZE_4K; i++) {
+        assert(blah[i] == 'a' + i % 25);
+    }
+}
+
 void run_tests(cspace_t *cspace)
 {
     /* test the cspace bitfield data structure */
@@ -121,4 +136,8 @@ void run_tests(cspace_t *cspace)
     test_cspace(&dummy_cspace);
     cspace_destroy(&dummy_cspace);
     ZF_LOGI("Double level cspace test passed!");
+
+    /* test DMA */
+    test_dma();
+    ZF_LOGI("DMA test passed!");
 }
