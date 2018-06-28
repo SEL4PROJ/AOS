@@ -339,9 +339,9 @@ static inline seL4_Error cspace_save_reply_cap(cspace_t *cspace, seL4_CPtr cptr)
  * @param irq The hardware IRQ number that you want to handle.
  * @return seL4_NoError on success.
  */
-static inline seL4_Error cspace_irq_control_get(cspace_t *dest, seL4_CPtr cptr, seL4_IRQControl irq_cap, int irq)
+static inline seL4_Error cspace_irq_control_get(cspace_t *dest, seL4_CPtr cptr, seL4_IRQControl irq_cap, int irq, int level)
 {
-    return seL4_IRQControl_Get(irq_cap, irq,  dest->root_cnode, cptr, seL4_WordBits);
+    return seL4_IRQControl_GetTrigger(irq_cap, irq, level, dest->root_cnode, cptr, seL4_WordBits);
 }
 
 /**
