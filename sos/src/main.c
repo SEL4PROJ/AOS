@@ -449,6 +449,9 @@ void init_muslc(void)
     muslcsys_install_syscall(__NR_ioctl, sys_ioctl);
     muslcsys_install_syscall(__NR_mmap, sys_mmap);
     muslcsys_install_syscall(__NR_brk,  sys_brk);
+    muslcsys_install_syscall(__NR_clock_gettime, sys_clock_gettime);
+    muslcsys_install_syscall(__NR_nanosleep, sys_nanosleep);
+
 }
 
 /*
