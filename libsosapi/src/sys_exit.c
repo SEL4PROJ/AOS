@@ -18,9 +18,7 @@ static void
 sel4_abort()
 {
     printf("sos aborting\n");
-#ifdef SEL4_DEBUG_KERNEL
-    seL4_DebugHalt();
-#endif
+    sos_process_delete(sos_my_id());
     while (1); /* We don't return after this */
 }
 

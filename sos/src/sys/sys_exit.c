@@ -33,10 +33,6 @@ static void sel4_abort(void)
         }
         printf("\n");
     }
-
-#if defined(CONFIG_DEBUG_BUILD)
-    seL4_DebugHalt();
-#endif
     while (1)
         ; /* We don't return after this */
 }
