@@ -49,7 +49,7 @@ add_executable(sos EXCLUDE_FROM_ALL crt/sel4_crt0.S src/bootstrap.c src/dma.c sr
                src/sys/sys_morecore.c src/sys/sys_stdio.c src/sys/sys_thread.c src/sys/sys_time.c
                src/drivers/uart.c archive.o)
 target_include_directories(sos PRIVATE "include")
-target_link_libraries(sos Configuration muslc sel4 elf cpio serial clock sel4cspace aos utils picotcp)
+target_link_libraries(sos Configuration muslc sel4 elf cpio serial clock sel4cspace aos utils picotcp nfs)
 
 # Set this image as the rootserver
 DeclareRootserver(sos)

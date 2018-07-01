@@ -42,8 +42,9 @@ set(KernelArmExportVCNTUser ON CACHE BOOL "" FORCE)
 # export the PMU so the cycle counter can be configured at user level
 set(KernelArmExportPMUUser ON CACHE BOOL "" FORCE)
 
-# enable our networking lib
+# enable our networking libs
 set(LibPicotcp ON CACHE BOOL "" FORCE)
+set(LibNfs ON CACHE BOOL "" FORCE)
 
 # Elfloader settings that correspond to how Data61 sets its boards up.
 ApplyData61ElfLoaderSettings()
