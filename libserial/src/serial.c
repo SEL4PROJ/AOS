@@ -15,6 +15,7 @@
 #include <serial/serial.h>
 #undef PACKED /* picotcp redefines this */
 #include <pico_socket.h>
+#include <pico_ipv4.h>
 
 #define AOS18_PORT (26718)
 #define MAX_PAYLOAD_SIZE  1024
@@ -63,6 +64,10 @@ struct serial *serial_init(void)
     if (err) {
         return NULL;
     }
+
+    /* Configure peer/port for sendto */
+    pico_string_to_ipv4(CONFIG_SOS_GATEWAY, &serial.peer);
+    serial.port = port_be;
 
     return &serial;
 }
