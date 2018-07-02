@@ -193,7 +193,8 @@ long sys_connect(va_list ap)
     socklen_t socklen = va_arg(ap, socklen_t);
 
     if (sd >= PICO_FD_START) {
-        return pico_connect(sd - PICO_FD_START, _saddr, socklen);
+        int err = pico_connect(sd - PICO_FD_START, _saddr, socklen);
+        return err == 0 ? err : -errno;
     }
     return -EINVAL;
 }
@@ -235,7 +236,8 @@ long sys_recvfrom(va_list ap)
     socklen_t *socklen = va_arg(ap, socklen_t *);
 
     if (sd >= PICO_FD_START) {
-        return pico_recvfrom(sd - PICO_FD_START, buf, len, flags, _addr, socklen);
+        int ret = pico_recvfrom(sd - PICO_FD_START, buf, len, flags, _addr, socklen);
+        return ret >= 0 ? ret : -errno;
     }
     return -EINVAL;
 }
@@ -338,6 +340,13 @@ long sys_ppoll(va_list ap)
 {
     struct pollfd *pfd = va_arg(ap, struct pollfd *);
     nfds_t npfd = va_arg(ap, nfds_t);
+
+    /* TODO: make this safer? */
+    assert(pfd);
+    for(uint32_t i = 0; i != npfd; ++i) {
+        pfd[i].fd -= PICO_FD_START;
+    }
+
     /* ignore timeouts, they won't work */
     return pico_ppoll(pfd, npfd, NULL, NULL);
 }
