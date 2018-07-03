@@ -200,8 +200,15 @@ long sys_connect(va_list ap)
     socklen_t socklen = va_arg(ap, socklen_t);
 
     if (sd >= PICO_FD_START) {
-        int err = pico_connect(sd - PICO_FD_START, _saddr, socklen);
-        return err == 0 ? err : -errno;
+        if (pico_connect(sd - PICO_FD_START, _saddr, socklen) == 0) {
+            return 0;
+        } else if (errno == EAGAIN) {
+            /* picoTCP reports EAGAIN instead of EINPROGRESS as an async connection return code.
+             * As a workaround, treat EAGAIN the same as EINPROGRESS. */
+            return -EINPROGRESS;
+        } else {
+            return -errno;
+        }
     }
     return -EINVAL;
 }
@@ -345,7 +352,14 @@ long sys_getsockopt(va_list ap)
     socklen_t *optlen = va_arg(ap, socklen_t *);
 
     if (sockfd >= PICO_FD_START) {
-        return pico_getsockopt(sockfd - PICO_FD_START, level, optname, optval, optlen);
+        int err = pico_getsockopt(sockfd - PICO_FD_START, level, optname, optval, optlen);
+        if (err == -1) {
+            /* picoTCP reports EAGAIN even after a socket is correctly connected,
+             * so we ignore EAGAIN error codes here. */
+            return errno == EAGAIN ? 0 : -errno;
+        } else {
+            return 0;
+        }
     }
     return -EINVAL;
 }
