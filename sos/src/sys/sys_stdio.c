@@ -369,13 +369,22 @@ long sys_ppoll(va_list ap)
     struct pollfd *pfd = va_arg(ap, struct pollfd *);
     nfds_t npfd = va_arg(ap, nfds_t);
 
-    /* TODO: make this safer? */
-    assert(pfd);
-    for(uint32_t i = 0; i != npfd; ++i) {
-        pfd[i].fd -= PICO_FD_START;
+    if (npfd > RLIMIT_NOFILE) {
+        return -EINVAL;
+    }
+
+    /* create a copy of the fds, mapped to pico fds */
+    struct pollfd pfd_copy[npfd];
+    for (nfds_t i = 0; i < npfd; i++) {
+        if (pfd[i].fd >= PICO_FD_START) {
+            pfd_copy[i] = pfd[i];
+            pfd_copy[i].fd -= PICO_FD_START;
+        } else {
+            return -EINVAL;
+        }
     }
 
     /* ignore timeouts, they won't work */
-    int ret = pico_ppoll(pfd, npfd, NULL, NULL);
+    int ret = pico_ppoll(pfd_copy, npfd, NULL, NULL);
     return ret == 0 ? 0 : -errno;
 }
