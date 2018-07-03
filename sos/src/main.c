@@ -109,7 +109,7 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
     }
 }
 
-void syscall_loop(seL4_CPtr ep, UNUSED seL4_CPtr ntfn)
+NORETURN void syscall_loop(seL4_CPtr ep, UNUSED seL4_CPtr ntfn)
 {
 
     while (1) {
@@ -469,6 +469,27 @@ void init_muslc(void)
     muslcsys_install_syscall(__NR_ppoll, sys_ppoll);
 }
 
+NORETURN void *main_continued(UNUSED void *arg)
+{
+    /* Initialise other system compenents here */
+    seL4_CPtr ipc_ep, ntfn;
+    sos_ipc_init(&ipc_ep, &ntfn);
+
+    /* run sos initialisation tests */
+    run_tests(&cspace);
+
+    /* Initialise the network hardware */
+    printf("Network init\n");
+    network_init(&cspace, badge_irq_ep(ntfn, IRQ_BADGE_NETWORK));
+
+    /* Start the user application */
+    printf("Start first process\n");
+    bool success = start_first_process(TTY_NAME, ipc_ep);
+    ZF_LOGF_IF(!success, "Failed to start first process");
+
+    printf("\nSOS entering syscall loop\n");
+    syscall_loop(ipc_ep, ntfn);
+}
 /*
  * Main entry point - called by crt.
  */
@@ -494,9 +515,6 @@ int main(void)
     /* Initialise the cspace manager, ut manager and dma */
     sos_bootstrap(&cspace, boot_info);
 
-    /* run sos initialisation tests */
-    run_tests(&cspace);
-
     /* switch to the real uart to output (rather than seL4_DebugPutChar, which only works if the
      * kernel is built with support for printing, and is much slower, as each character print
      * goes via the kernel)
@@ -506,24 +524,24 @@ int main(void)
     update_vputchar(uart_putchar);
 
     /* test print */
-    printf("SOS Started!");
+    printf("SOS Started!\n");
 
-    /* Initialise other system compenents here */
-    seL4_CPtr ipc_ep, ntfn;
-    sos_ipc_init(&ipc_ep, &ntfn);
+    /* allocate a bigger stack and switch to it -- we'll also have a guard page, which makes it much
+     * easier to detect stack overruns */
+    seL4_Word vaddr = SOS_STACK;
+    for (int i = 0; i < SOS_STACK_PAGES; i++) {
+        seL4_CPtr frame_cap;
+        ut_t *frame = alloc_retype(&frame_cap, seL4_ARM_SmallPageObject, seL4_PageBits);
+        ZF_LOGF_IF(frame == NULL, "Failed to allocate stack page");
+        seL4_Error err = map_frame(&cspace, frame_cap, seL4_CapInitThreadVSpace,
+                                   vaddr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
+        ZF_LOGF_IFERR(err, "Failed to map stack");
+        vaddr += PAGE_SIZE_4K;
+    }
 
-    /* Initialise the network hardware */
-    network_init(&cspace, badge_irq_ep(ntfn, IRQ_BADGE_NETWORK));
+    utils_run_on_stack((void *) vaddr, main_continued, NULL);
 
-    /* Start the user application */
-    bool success = start_first_process(TTY_NAME, ipc_ep);
-    ZF_LOGF_IF(!success, "Failed to start first process");
-
-    printf("\nSOS entering syscall loop\n");
-    syscall_loop(ipc_ep, ntfn);
-
-    /* Not reached */
-    return 0;
+    UNREACHABLE();
 }
 
 
