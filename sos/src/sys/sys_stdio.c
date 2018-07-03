@@ -100,7 +100,12 @@ sys_writev(va_list ap)
         }
     } else if (fildes >= PICO_FD_START) {
         for (int i = 0; i < iovcnt; i++) {
-            ret += pico_write(fildes - PICO_FD_START, iov[i].iov_base, iov[i].iov_len);
+            int res = pico_write(fildes - PICO_FD_START, iov[i].iov_base, iov[i].iov_len);
+            if (res == -1) {
+                return -errno;
+            } else {
+                ret += res;
+            }
         }
     }
 
@@ -170,7 +175,8 @@ long sys_bind(va_list ap)
     socklen_t socklen = va_arg(ap, socklen_t);
 
     if (sd >= PICO_FD_START) {
-        return pico_bind(sd - PICO_FD_START, local_addr, socklen);
+        int ret = pico_bind(sd - PICO_FD_START, local_addr, socklen);
+        return ret == 0 ? 0 : -errno;
     }
     return -EINVAL;
 }
@@ -180,7 +186,8 @@ long sys_listen(va_list ap) {
     int backlog = va_arg(ap, int);
 
     if (sd >= PICO_FD_START) {
-        return  pico_listen(sd - PICO_FD_START, backlog);
+        int ret = pico_listen(sd - PICO_FD_START, backlog);
+        return ret == 0 ? 0 : -errno;
     }
 
     return -EINVAL;
@@ -206,7 +213,8 @@ long sys_accept(va_list ap)
     socklen_t *socklen = va_arg(ap, socklen_t *);
 
     if (sd >= PICO_FD_START) {
-        return pico_accept(sd - PICO_FD_START, _orig, socklen);
+        int ret = pico_accept(sd - PICO_FD_START, _orig, socklen);
+        return ret == 0 ? 0 : -errno;
     }
     return -EINVAL;
 }
@@ -221,7 +229,8 @@ long sys_sendto(va_list ap)
     socklen_t socklen = va_arg(ap, socklen_t);
 
     if (sd >= PICO_FD_START) {
-        return pico_sendto(sd - PICO_FD_START, buf, len, flags, _dst, socklen);
+        int ret = pico_sendto(sd - PICO_FD_START, buf, len, flags, _dst, socklen);
+        return ret < 0 ? -errno : ret;
     }
     return -EINVAL;
 }
@@ -268,7 +277,8 @@ long sys_close(va_list ap)
 {
     int sockfd = va_arg(ap, int);
     if (sockfd >= PICO_FD_START) {
-        return pico_close(sockfd - PICO_FD_START);
+        int ret = pico_close(sockfd - PICO_FD_START);
+        return ret == 0 ? 0 : -errno;
     }
     return -EINVAL;
 }
@@ -280,7 +290,8 @@ long sys_getsockname(va_list ap)
     socklen_t *socklen = va_arg(ap, socklen_t *);
 
     if (sd >= PICO_FD_START) {
-        return pico_getsockname(sd - PICO_FD_START, local_addr, socklen);
+        int ret = pico_getsockname(sd - PICO_FD_START, local_addr, socklen);
+        return ret == 0 ? 0 : -errno;
     }
     return -EINVAL;
 }
@@ -292,7 +303,8 @@ long sys_getpeername(va_list ap)
     socklen_t *socklen = va_arg(ap, socklen_t *);
 
     if (sd >= PICO_FD_START) {
-        return pico_getpeername(sd - PICO_FD_START, remote_addr, socklen);
+        int ret = pico_getpeername(sd - PICO_FD_START, remote_addr, socklen);
+        return ret == 0 ? 0 : -errno;
     }
     return -EINVAL;
 }
@@ -303,7 +315,8 @@ long sys_fcntl(va_list ap)
     int cmd = va_arg(ap, int);
     int arg = va_arg(ap, int);
     if (sockfd >= PICO_FD_START) {
-        return pico_fcntl(sockfd - PICO_FD_START, cmd, arg);
+        int ret = pico_fcntl(sockfd - PICO_FD_START, cmd, arg);
+        return ret == 0 ? 0 : -errno;
     }
     return -EINVAL;
 }
@@ -317,7 +330,8 @@ long sys_setsockopt(va_list ap)
     socklen_t optlen = va_arg(ap, socklen_t);
 
     if (sockfd >= PICO_FD_START) {
-        return pico_setsockopt(sockfd - PICO_FD_START, level, optname, optval, optlen);
+        int ret = pico_setsockopt(sockfd - PICO_FD_START, level, optname, optval, optlen);
+        return ret == 0 ? 0 : -errno;
     }
     return -EINVAL;
 }
@@ -348,5 +362,6 @@ long sys_ppoll(va_list ap)
     }
 
     /* ignore timeouts, they won't work */
-    return pico_ppoll(pfd, npfd, NULL, NULL);
+    int ret = pico_ppoll(pfd, npfd, NULL, NULL);
+    return ret == 0 ? 0 : -errno;
 }
