@@ -126,14 +126,14 @@ long
 sys_ioctl(va_list ap)
 {
     int fd = va_arg(ap, int);
-    int request = va_arg(ap, int);
-    (void)request;
+    UNUSED int request = va_arg(ap, int);
     /* muslc does some ioctls to stdout, so just allow these to silently
        go through */
     if (fd == STDOUT_FD) {
         return 0;
     }
-    assert(!"not implemented");
+
+    ZF_LOGF("io ctl not implemented");
     return 0;
 }
 
