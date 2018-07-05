@@ -372,18 +372,20 @@ long sys_ppoll(va_list ap)
         return -EINVAL;
     }
 
-    /* create a copy of the fds, mapped to pico fds */
-    struct pollfd pfd_copy[npfd];
     for (nfds_t i = 0; i < npfd; i++) {
         if (pfd[i].fd >= PICO_FD_START) {
-            pfd_copy[i] = pfd[i];
-            pfd_copy[i].fd -= PICO_FD_START;
+            pfd[i].fd -= PICO_FD_START;
         } else {
             return -EINVAL;
         }
     }
 
     /* ignore timeouts, they won't work */
-    int ret = pico_ppoll(pfd_copy, npfd, tmo_p, NULL);
+    int ret = pico_ppoll(pfd, npfd, tmo_p, NULL);
+
+    for (nfds_t i = 0; i < npfd; i++) {
+        pfd[i].fd += PICO_FD_START;
+    }
+
     return ret >= 0 ? ret : -errno;
 }
