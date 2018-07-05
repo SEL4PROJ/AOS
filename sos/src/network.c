@@ -34,6 +34,7 @@
 #include <pico_dhcp_client.h>
 #include <pico_dhcp_server.h>
 #include <pico_ipfilter.h>
+#include "pico_bsd_sockets.h"
 
 #include <ethernet/ethernet.h>
 
@@ -135,6 +136,7 @@ void network_init(UNUSED cspace_t *cspace, UNUSED seL4_CPtr interrupt_ntfn)
     struct pico_ip4 gateway;
     struct pico_ip4 zero;
 
+    pico_bsd_init();
     pico_stack_init();
 
     memset(&pico_dev, 0, sizeof(struct pico_device));
