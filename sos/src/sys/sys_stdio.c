@@ -343,7 +343,8 @@ long sys_getsockopt(va_list ap)
     socklen_t *optlen = va_arg(ap, socklen_t *);
 
     if (sockfd >= PICO_FD_START) {
-        return pico_getsockopt(sockfd - PICO_FD_START, level, optname, optval, optlen);
+        int ret = pico_getsockopt(sockfd - PICO_FD_START, level, optname, optval, optlen);
+        return ret == 0 ? 0 : -errno;
     }
     return -EINVAL;
 }
