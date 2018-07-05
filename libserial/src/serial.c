@@ -7,117 +7,77 @@
  *
  * @TAG(NICTA_BSD)
  */
-
+#include <autoconf.h>
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
-
-#include <lwip/netif.h>
-#include <lwip/pbuf.h>
-#include <lwip/udp.h>
-
+#include <utils/util.h>
 #include <serial/serial.h>
+#undef PACKED /* picotcp redefines this */
+#include <pico_socket.h>
 
-// To remember checkout a mobile keypad for AOS06
-#define AOS06_PORT (26706)
-
-/* Limit the MTU to give client a chance to respond */
-#define MAX_PAYLOAD_SIZE  500
-
-/* Attempt to obtain UDP reliability by providing some delay to flush network queues
- * This should not be a problem when using a high throughput connection
- */
-//#define TX_DELAY_US  1000UL
-#define TX_DELAY_US  0UL
+#define AOS18_PORT (26718)
+#define MAX_PAYLOAD_SIZE  1024
 
 struct serial {
-    void (*fHandler) (struct serial *serial, char c);
-    struct udp_pcb *fUpcb;
+    struct pico_ip4 inaddr_any;
+    struct pico_socket *pico_socket;
+    void (*handler)(struct serial *serial, char c);
+    uint32_t peer;
+    uint16_t port;
 };
 
-static void 
-serial_recv_handler(void *vSerial, struct udp_pcb *unused0, 
-                    struct pbuf *p, struct ip_addr *unused1, u16_t unused2)
+char buf[MAX_PAYLOAD_SIZE];
+static struct serial serial = {};
+
+static void serial_recv_handler(uint16_t ev, struct pico_socket *s)
 {
-    struct serial *serial = (struct serial *) vSerial;
-    if (serial && serial->fHandler) {
-        struct pbuf *q;
-        for(q = p; q != NULL; q = q->next){
-            char *data = q->payload;
-            int i;
-            for(i = 0; i < q->len; i++){
-                serial->fHandler(serial, *data++);
+    if (ev == PICO_SOCK_EV_RD) {
+        int read = 0;
+        do {
+            read = pico_socket_recvfrom(serial.pico_socket, buf, MAX_PAYLOAD_SIZE, &serial.peer, &serial.port);
+            for (int i = 0; i < read; i++) {
+                serial.handler(&serial, buf[i]);
             }
-        }
+        } while (read > 0);
+    } else if (ev == PICO_SOCK_EV_ERR) {
+        ZF_LOGE("Pico recv error");
     }
-    pbuf_free(p);
 }
 
-struct serial *
-serial_init(void)
+struct serial *serial_init(void)
 {
-    static struct serial serial = {.fUpcb = NULL, .fHandler = NULL};
-    if(serial.fUpcb != NULL){
-        return &serial;
-    }
-    serial.fUpcb = udp_new();
-
-    u16_t port = AOS06_PORT;
-    if (udp_bind(serial.fUpcb, &netif_default->ip_addr, port)){
-        udp_remove(serial.fUpcb);
-        serial.fUpcb = NULL;
+    if (serial.pico_socket != NULL) {
+        ZF_LOGE("Serial already initialised!");
         return NULL;
     }
 
-    if (udp_connect(serial.fUpcb, &netif_default->gw, port)){
-        udp_remove(serial.fUpcb);
-        serial.fUpcb = NULL;
+    serial.pico_socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &serial_recv_handler);
+    if (!serial.pico_socket) {
+        ZF_LOGE("serial connection failed");
         return NULL;
     }
-    udp_recv(serial.fUpcb, &serial_recv_handler, &serial);
+
+    uint16_t port_be = short_be(AOS18_PORT);
+    int err = pico_socket_bind(serial.pico_socket, &serial.inaddr_any, &port_be);
+    if (err) {
+        return NULL;
+    }
 
     return &serial;
 }
 
-static void
-__delay(int us)
+int serial_send(struct serial *serial, char *data, int len)
 {
-    while(us--){
-        /* Loosely assume 1GHZ clock */
-        volatile int i = 1000;
-        while(i--);
-    }
-}
-
-int
-serial_send(struct serial *serial, char *data, int len)
-{
-    int to_send = len;
-    while(to_send > 0){
-        int plen;
-        struct pbuf *p;
-        /* Generate the packet */
-        plen = (to_send > MAX_PAYLOAD_SIZE)? MAX_PAYLOAD_SIZE : to_send;
-        p = pbuf_alloc(PBUF_TRANSPORT, plen, PBUF_RAM);
-        if(p == NULL){
-            return len - to_send;
+    assert(serial->pico_socket != NULL);
+    int total_sent = 0;
+    while (total_sent < len) {
+        int sent = pico_socket_sendto(serial->pico_socket, data, len, &serial->peer, serial->port);
+        if (sent == -1) {
+            ZF_LOGE("Pico send failed");
+            return -1;
         }
-
-        if(pbuf_take(p, data, plen)){
-            pbuf_free(p);
-            return len - to_send;
-        }
-
-        __delay(TX_DELAY_US);
-
-        if (udp_send(serial->fUpcb, p)){
-            pbuf_free(p);
-            return len - to_send;
-        }
-
-        pbuf_free(p);
-        to_send -= plen;
-        data += plen;
+        total_sent += sent;
     }
     return len;
 }
@@ -126,6 +86,6 @@ int
 serial_register_handler(struct serial *serial,
                         void (*handler)(struct serial *serial, char c))
 {
-    serial->fHandler = handler;
+    serial->handler = handler;
     return 0;
 }
