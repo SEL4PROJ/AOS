@@ -366,6 +366,7 @@ long sys_ppoll(va_list ap)
 {
     struct pollfd *pfd = va_arg(ap, struct pollfd *);
     nfds_t npfd = va_arg(ap, nfds_t);
+    struct timespec *tmo_p = va_arg(ap, struct timespec *);
 
     if (npfd > RLIMIT_NOFILE) {
         return -EINVAL;
@@ -383,6 +384,6 @@ long sys_ppoll(va_list ap)
     }
 
     /* ignore timeouts, they won't work */
-    int ret = pico_ppoll(pfd_copy, npfd, NULL, NULL);
-    return ret == 0 ? 0 : -errno;
+    int ret = pico_ppoll(pfd_copy, npfd, tmo_p, NULL);
+    return ret >= 0 ? ret : -errno;
 }
