@@ -105,7 +105,7 @@ ethif_dma_addr_t ethif_dma_malloc(uint32_t size, uint32_t align)
 }
 
 void network_tick() {
-    pico_stack_tick();
+    pico_bsd_stack_tick();
 }
 
 void network_init(UNUSED cspace_t *cspace, UNUSED seL4_CPtr interrupt_ntfn)
