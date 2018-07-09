@@ -229,6 +229,14 @@ long sys_sendto(va_list ap)
 
     if (sd >= PICO_FD_START) {
         int ret = pico_sendto(sd - PICO_FD_START, buf, len, flags, _dst, socklen);
+        if (ret == 0) {
+            /* PicoTCP will happily report zero bytes sent if its buffers are full,
+             * but the canonical way to deal with this in libraries that use sendto()
+             * (like libnfs) is to keep trying to send the data in a loop until it
+             * succeeds. Since we don't want sendto() to have to block (and tick the IP
+             * stack), return an error message indicating the TX buffers are full. */
+            return -EWOULDBLOCK;
+        }
         return ret < 0 ? -errno : ret;
     }
     return -EINVAL;
