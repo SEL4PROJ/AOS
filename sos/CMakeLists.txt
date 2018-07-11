@@ -55,7 +55,7 @@ add_executable(sos EXCLUDE_FROM_ALL crt/sel4_crt0.S src/bootstrap.c src/dma.c sr
                src/drivers/uart.c archive.o src/sos.lds)
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(sos Configuration muslc sel4 elf cpio serial clock sel4cspace aos utils picotcp
-                      picotcp_bsd nfs)
+                      picotcp_bsd nfs ethernet)
 
 set_property(TARGET sos APPEND_STRING PROPERTY LINK_FLAGS " -T ${CMAKE_CURRENT_SOURCE_DIR}/src/sos.lds ")
 # Set this image as the rootserver
