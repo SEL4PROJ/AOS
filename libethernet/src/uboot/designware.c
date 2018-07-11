@@ -142,15 +142,17 @@ static int dw_mdio_init(const char *name, void *priv)
 static void tx_descs_init(struct dw_eth_dev *priv)
 {
 	struct eth_dma_regs *dma_p = priv->dma_regs_p;
-	struct dmamacdescr *desc_table_p = &priv->tx_mac_descrtable[0];
-	char *txbuffs = &priv->txbuffs[0];
+	struct dmamacdescr *desc_table_vptr = (struct dmamacdescr*)priv->tx_mac_descrtable.vaddr;
+	struct dmamacdescr *desc_table_pptr = (struct dmamacdescr*)priv->tx_mac_descrtable.paddr;
+	char *txbuffs_vptr = (char*)priv->txbuffs.vaddr;
+	char *txbuffs_pptr = (char*)priv->txbuffs.paddr;
 	struct dmamacdescr *desc_p;
 	u32 idx;
 
 	for (idx = 0; idx < CONFIG_TX_DESCR_NUM; idx++) {
-		desc_p = &desc_table_p[idx];
-		desc_p->dmamac_addr = (ulong)&txbuffs[idx * CONFIG_ETH_BUFSIZE];
-		desc_p->dmamac_next = (ulong)&desc_table_p[idx + 1];
+		desc_p = &desc_table_vptr[idx];
+		desc_p->dmamac_addr = (ulong)&txbuffs_pptr[idx * CONFIG_ETH_BUFSIZE];
+		desc_p->dmamac_next = (ulong)&desc_table_pptr[idx + 1];
 
 #if defined(CONFIG_DW_ALTDESCRIPTOR)
 		desc_p->txrx_status &= ~(DESC_TXSTS_TXINT | DESC_TXSTS_TXLAST |
@@ -168,22 +170,24 @@ static void tx_descs_init(struct dw_eth_dev *priv)
 	}
 
 	/* Correcting the last pointer of the chain */
-	desc_p->dmamac_next = (ulong)&desc_table_p[0];
+	desc_p->dmamac_next = (ulong)&desc_table_pptr[0];
 
 	/* Flush all Tx buffer descriptors at once */
-	flush_dcache_range((ulong)priv->tx_mac_descrtable,
-			   (ulong)priv->tx_mac_descrtable +
-			   sizeof(priv->tx_mac_descrtable));
+	uboot_flush_dcache_range((ulong)priv->tx_mac_descrtable.vaddr,
+			   (ulong)priv->tx_mac_descrtable.vaddr +
+			   (ulong)priv->tx_mac_descrtable.size);
 
-	writel((ulong)&desc_table_p[0], &dma_p->txdesclistaddr);
+	writel((ulong)&desc_table_pptr[0], &dma_p->txdesclistaddr);
 	priv->tx_currdescnum = 0;
 }
 
 static void rx_descs_init(struct dw_eth_dev *priv)
 {
 	struct eth_dma_regs *dma_p = priv->dma_regs_p;
-	struct dmamacdescr *desc_table_p = &priv->rx_mac_descrtable[0];
-	char *rxbuffs = &priv->rxbuffs[0];
+	struct dmamacdescr *desc_table_vptr = (struct dmamacdescr*)priv->rx_mac_descrtable.vaddr;
+	struct dmamacdescr *desc_table_pptr = (struct dmamacdescr*)priv->rx_mac_descrtable.paddr;
+	char *rxbuffs_vptr = (char*)priv->rxbuffs.vaddr;
+	char *rxbuffs_pptr = (char*)priv->rxbuffs.paddr;
 	struct dmamacdescr *desc_p;
 	u32 idx;
 
@@ -193,12 +197,12 @@ static void rx_descs_init(struct dw_eth_dev *priv)
 	 * Otherwise there's a chance to get some of them flushed in RAM when
 	 * GMAC is already pushing data to RAM via DMA. This way incoming from
 	 * GMAC data will be corrupted. */
-	flush_dcache_range((ulong)rxbuffs, (ulong)rxbuffs + RX_TOTAL_BUFSIZE);
+	uboot_flush_dcache_range((ulong)priv->rxbuffs.vaddr, (ulong)priv->rxbuffs.vaddr + (ulong)priv->rxbuffs.size);
 
 	for (idx = 0; idx < CONFIG_RX_DESCR_NUM; idx++) {
-		desc_p = &desc_table_p[idx];
-		desc_p->dmamac_addr = (ulong)&rxbuffs[idx * CONFIG_ETH_BUFSIZE];
-		desc_p->dmamac_next = (ulong)&desc_table_p[idx + 1];
+		desc_p = &desc_table_vptr[idx];
+		desc_p->dmamac_addr = (ulong)&rxbuffs_pptr[idx * CONFIG_ETH_BUFSIZE];
+		desc_p->dmamac_next = (ulong)&desc_table_pptr[idx + 1];
 
 		desc_p->dmamac_cntl =
 			(MAC_MAX_FRAME_SZ & DESC_RXCTRL_SIZE1MASK) |
@@ -208,14 +212,14 @@ static void rx_descs_init(struct dw_eth_dev *priv)
 	}
 
 	/* Correcting the last pointer of the chain */
-	desc_p->dmamac_next = (ulong)&desc_table_p[0];
+	desc_p->dmamac_next = (ulong)&desc_table_pptr[0];
 
 	/* Flush all Rx buffer descriptors at once */
-	flush_dcache_range((ulong)priv->rx_mac_descrtable,
-			   (ulong)priv->rx_mac_descrtable +
-			   sizeof(priv->rx_mac_descrtable));
+	uboot_flush_dcache_range((ulong)priv->rx_mac_descrtable.vaddr,
+			   (ulong)priv->rx_mac_descrtable.vaddr +
+			   (ulong)priv->rx_mac_descrtable.size);
 
-	writel((ulong)&desc_table_p[0], &dma_p->rxdesclistaddr);
+	writel((ulong)&desc_table_pptr[0], &dma_p->rxdesclistaddr);
 	priv->rx_currdescnum = 0;
 }
 
@@ -352,12 +356,12 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
 {
 	struct eth_dma_regs *dma_p = priv->dma_regs_p;
 	u32 desc_num = priv->tx_currdescnum;
-	struct dmamacdescr *desc_p = &priv->tx_mac_descrtable[desc_num];
-	ulong desc_start = (ulong)desc_p;
-	ulong desc_end = desc_start +
-		roundup(sizeof(*desc_p), ARCH_DMA_MINALIGN);
-	ulong data_start = desc_p->dmamac_addr;
-	ulong data_end = data_start + roundup(length, ARCH_DMA_MINALIGN);
+	struct dmamacdescr *desc_vptr = &((struct dmamacdescr*)priv->tx_mac_descrtable.vaddr)[desc_num];
+	ulong desc_vstart = (ulong)desc_vptr;
+	ulong desc_vend = desc_vstart +
+		roundup(sizeof(*desc_vptr), ARCH_DMA_MINALIGN);
+	ulong data_vstart = uboot_dma_phys_to_virt(desc_vptr->dmamac_addr);
+	ulong data_vend = data_vstart + roundup(length, ARCH_DMA_MINALIGN);
 	/*
 	 * Strictly we only need to invalidate the "txrx_status" field
 	 * for the following check, but on some platforms we cannot
@@ -366,38 +370,39 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
 	 * individual descriptors in the array are each aligned to
 	 * ARCH_DMA_MINALIGN and padded appropriately.
 	 */
-	invalidate_dcache_range(desc_start, desc_end);
+	uboot_invalidate_dcache_range(desc_vstart, desc_vend);
 
 	/* Check if the descriptor is owned by CPU */
-	if (desc_p->txrx_status & DESC_TXSTS_OWNBYDMA) {
+	if (desc_vptr->txrx_status & DESC_TXSTS_OWNBYDMA) {
 		printf("CPU not owner of tx frame\n");
 		return -EPERM;
 	}
 
 	length = max(length, ETH_ZLEN);
 
-	memcpy((void *)data_start, packet, length);
+	memcpy((void *)data_vstart, packet, length);
 
 	/* Flush data to be sent */
-	flush_dcache_range(data_start, data_end);
+	uboot_flush_dcache_range(data_vstart, data_vend);
 
 #if defined(CONFIG_DW_ALTDESCRIPTOR)
-	desc_p->txrx_status |= DESC_TXSTS_TXFIRST | DESC_TXSTS_TXLAST;
-	desc_p->dmamac_cntl |= (length << DESC_TXCTRL_SIZE1SHFT) &
+	desc_vptr->txrx_status |= DESC_TXSTS_TXFIRST | DESC_TXSTS_TXLAST;
+	desc_vptr->dmamac_cntl |= (length << DESC_TXCTRL_SIZE1SHFT) &
 			       DESC_TXCTRL_SIZE1MASK;
 
-	desc_p->txrx_status &= ~(DESC_TXSTS_MSK);
-	desc_p->txrx_status |= DESC_TXSTS_OWNBYDMA;
+	desc_vptr->txrx_status &= ~(DESC_TXSTS_MSK);
+	desc_vptr->txrx_status |= DESC_TXSTS_OWNBYDMA;
 #else
-	desc_p->dmamac_cntl |= ((length << DESC_TXCTRL_SIZE1SHFT) &
-			       DESC_TXCTRL_SIZE1MASK) | DESC_TXCTRL_TXLAST |
+
+	desc_vptr->dmamac_cntl |= ((length << DESC_TXCTRL_SIZE1SHFT) & DESC_TXCTRL_SIZE1MASK
+			       ) | DESC_TXCTRL_TXLAST |
 			       DESC_TXCTRL_TXFIRST;
 
-	desc_p->txrx_status = DESC_TXSTS_OWNBYDMA;
+	desc_vptr->txrx_status = DESC_TXSTS_OWNBYDMA;
 #endif
 
 	/* Flush modified buffer descriptor */
-	flush_dcache_range(desc_start, desc_end);
+	uboot_flush_dcache_range(desc_vstart, desc_vend);
 
 	/* Test the wrap-around condition. */
 	if (++desc_num >= CONFIG_TX_DESCR_NUM)
@@ -414,18 +419,18 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
 static int _dw_eth_recv(struct dw_eth_dev *priv, uchar **packetp)
 {
 	u32 status, desc_num = priv->rx_currdescnum;
-	struct dmamacdescr *desc_p = &priv->rx_mac_descrtable[desc_num];
+	struct dmamacdescr *desc_vptr = &((struct dmamacdescr*)priv->rx_mac_descrtable.vaddr)[desc_num];
 	int length = -EAGAIN;
-	ulong desc_start = (ulong)desc_p;
-	ulong desc_end = desc_start +
-		roundup(sizeof(*desc_p), ARCH_DMA_MINALIGN);
-	ulong data_start = desc_p->dmamac_addr;
-	ulong data_end;
+	ulong desc_vstart = (ulong)desc_vptr;
+	ulong desc_vend = desc_vstart +
+		roundup(sizeof(*desc_vptr), ARCH_DMA_MINALIGN);
+	ulong data_vstart = uboot_dma_phys_to_virt(desc_vptr->dmamac_addr);
+	ulong data_vend;
 
 	/* Invalidate entire buffer descriptor */
-	invalidate_dcache_range(desc_start, desc_end);
+	uboot_invalidate_dcache_range(desc_vstart, desc_vend);
 
-	status = desc_p->txrx_status;
+	status = desc_vptr->txrx_status;
 
 	/* Check  if the owner is the CPU */
 	if (!(status & DESC_RXSTS_OWNBYDMA)) {
@@ -434,9 +439,9 @@ static int _dw_eth_recv(struct dw_eth_dev *priv, uchar **packetp)
 			 DESC_RXSTS_FRMLENSHFT;
 
 		/* Invalidate received data */
-		data_end = data_start + roundup(length, ARCH_DMA_MINALIGN);
-		invalidate_dcache_range(data_start, data_end);
-		*packetp = (uchar *)(ulong)desc_p->dmamac_addr;
+		data_vend = data_vstart + roundup(length, ARCH_DMA_MINALIGN);
+		uboot_invalidate_dcache_range(data_vstart, data_vend);
+		*packetp = (uchar *)(ulong)uboot_dma_phys_to_virt(desc_vptr->dmamac_addr);
 	}
 
 	return length;
@@ -445,19 +450,19 @@ static int _dw_eth_recv(struct dw_eth_dev *priv, uchar **packetp)
 static int _dw_free_pkt(struct dw_eth_dev *priv)
 {
 	u32 desc_num = priv->rx_currdescnum;
-	struct dmamacdescr *desc_p = &priv->rx_mac_descrtable[desc_num];
-	ulong desc_start = (ulong)desc_p;
-	ulong desc_end = desc_start +
-		roundup(sizeof(*desc_p), ARCH_DMA_MINALIGN);
+	struct dmamacdescr *desc_vptr = &((struct dmamacdescr*)priv->rx_mac_descrtable.vaddr)[desc_num];
+	ulong desc_vstart = (ulong)desc_vptr;
+	ulong desc_vend = desc_vstart +
+		roundup(sizeof(*desc_vptr), ARCH_DMA_MINALIGN);
 
 	/*
 	 * Make the current descriptor valid again and go to
 	 * the next one
 	 */
-	desc_p->txrx_status |= DESC_RXSTS_OWNBYDMA;
+	desc_vptr->txrx_status |= DESC_RXSTS_OWNBYDMA;
 
 	/* Flush only status field - others weren't changed */
-	flush_dcache_range(desc_start, desc_end);
+	uboot_flush_dcache_range(desc_vstart, desc_vend);
 
 	/* Test the wrap-around condition. */
 	if (++desc_num >= CONFIG_RX_DESCR_NUM)
@@ -565,6 +570,21 @@ int designware_initialize(ulong base_addr, u32 interface)
 
 	memset(dev, 0, sizeof(struct eth_device));
 	memset(priv, 0, sizeof(struct dw_eth_dev));
+
+	/* The descriptors and TX/RX buffers must be DMA, addresses are directly passed to hardware */
+
+	priv->tx_mac_descrtable =
+		uboot_dma_malloc(sizeof(struct dmamacdescr) * CONFIG_TX_DESCR_NUM, ARCH_DMA_MINALIGN);
+	priv->rx_mac_descrtable =
+		uboot_dma_malloc(sizeof(struct dmamacdescr) * CONFIG_RX_DESCR_NUM, ARCH_DMA_MINALIGN);
+
+	priv->txbuffs = uboot_dma_malloc(TX_TOTAL_BUFSIZE, ARCH_DMA_MINALIGN);
+	priv->rxbuffs = uboot_dma_malloc(RX_TOTAL_BUFSIZE, ARCH_DMA_MINALIGN);
+
+	memset((void*)priv->tx_mac_descrtable.vaddr, 0, priv->tx_mac_descrtable.size);
+	memset((void*)priv->rx_mac_descrtable.vaddr, 0, priv->rx_mac_descrtable.size);
+	memset((void*)priv->txbuffs.vaddr, 0, priv->txbuffs.size);
+	memset((void*)priv->rxbuffs.vaddr, 0, priv->rxbuffs.size);
 
 	sprintf(dev->name, "dwmac.%lx", base_addr);
 	dev->iobase = (int)base_addr;

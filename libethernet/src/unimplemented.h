@@ -17,6 +17,32 @@
 #include <string.h>
 #include <ethernet/ethernet.h>
 
+/****************************************
+ * Adaptors to u-boot functions         *
+ ****************************************/
+
+ethif_dma_ops_t *uboot_get_dma_ops();
+
+static inline ethif_dma_addr_t uboot_dma_malloc(uint32_t size, uint32_t align)
+{
+    return uboot_get_dma_ops()->dma_malloc(size, align);
+}
+
+static inline uintptr_t uboot_dma_phys_to_virt(uintptr_t phys)
+{
+    return uboot_get_dma_ops()->dma_phys_to_virt(phys);
+}
+
+static inline uint32_t uboot_flush_dcache_range(unsigned long start, unsigned long stop)
+{
+    return uboot_get_dma_ops()->flush_dcache_range(start, stop-start);
+}
+
+static inline uint32_t uboot_invalidate_dcache_range(unsigned long start, unsigned long stop)
+{
+    return uboot_get_dma_ops()->invalidate_dcache_range(start, stop-start);
+}
+
 /***********************************************************************************
  * The rest of this file is a dumping ground of missing symbols required by u-boot *
  ***********************************************************************************/
