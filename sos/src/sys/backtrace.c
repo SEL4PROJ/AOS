@@ -1,17 +1,8 @@
-/*
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- */
-
+/* @TAG(OTHER_GPL) */
 /* Return backtrace of current program state.
-   Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2003-2005,2007,2009,2011,2012 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
-   Contributed by Kazu Hirata <kazu@codesourcery.com>, 2008.
+   Contributed by Jakub Jelinek <jakub@redhat.com>, 2003.
 
    The GNU C Library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -24,30 +15,38 @@
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library.  If not, see
+   License along with the GNU C Library; if not, see
    <http://www.gnu.org/licenses/>.  */
 
 //#include <bits/libc-lock.h>
-//#include <dlfcn.h>
+#include <dlfcn.h>
+//#include <execinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "unwind.h"
-#include "execinfo.h"
+
 struct trace_arg
 {
   void **array;
-  int cnt, size;
+  _Unwind_Word cfa;
+  int cnt;
+  int size;
 };
 
 #ifdef SHARED
 static _Unwind_Reason_Code (*unwind_backtrace) (_Unwind_Trace_Fn, void *);
-static _Unwind_VRS_Result (*unwind_vrs_get) (_Unwind_Context *,
-					     _Unwind_VRS_RegClass,
-					     _uw,
-					     _Unwind_VRS_DataRepresentation,
-					     void *);
-
+static _Unwind_Ptr (*unwind_getip) (struct _Unwind_Context *);
+static _Unwind_Word (*unwind_getcfa) (struct _Unwind_Context *);
 static void *libgcc_handle;
+
+
+/* Dummy version in case libgcc_s does not contain the real code.  */
+static _Unwind_Word
+dummy_getcfa (struct _Unwind_Context *ctx __attribute__ ((unused)))
+{
+    return 0;
+}
+
 
 static void
 init (void)
@@ -58,28 +57,16 @@ init (void)
     return;
 
   unwind_backtrace = __libc_dlsym (libgcc_handle, "_Unwind_Backtrace");
-  unwind_vrs_get = __libc_dlsym (libgcc_handle, "_Unwind_VRS_Get");
-  if (unwind_vrs_get == NULL)
+  unwind_getip = __libc_dlsym (libgcc_handle, "_Unwind_GetIP");
+  if (unwind_getip == NULL)
     unwind_backtrace = NULL;
+  unwind_getcfa = (__libc_dlsym (libgcc_handle, "_Unwind_GetCFA")
+		  ?: dummy_getcfa);
 }
-
-/* This function is identical to "_Unwind_GetGR", except that it uses
-   "unwind_vrs_get" instead of "_Unwind_VRS_Get".  */
-static inline _Unwind_Word
-unwind_getgr (_Unwind_Context *context, int regno)
-{
-  _uw val;
-  unwind_vrs_get (context, _UVRSC_CORE, regno, _UVRSD_UINT32, &val);
-  return val;
-}
-
-/* This macro is identical to the _Unwind_GetIP macro, except that it
-   uses "unwind_getgr" instead of "_Unwind_GetGR".  */
-# define unwind_getip(context) \
-  (unwind_getgr (context, 15) & ~(_Unwind_Word)1)
 #else
 # define unwind_backtrace _Unwind_Backtrace
 # define unwind_getip _Unwind_GetIP
+# define unwind_getcfa _Unwind_GetCFA
 #endif
 
 static _Unwind_Reason_Code
@@ -89,21 +76,29 @@ backtrace_helper (struct _Unwind_Context *ctx, void *a)
 
   /* We are first called with address in the __backtrace function.
      Skip it.  */
-
   if (arg->cnt != -1)
-    arg->array[arg->cnt] = (void *) unwind_getip (ctx);
-  if (++arg->cnt == arg->size) {
+    {
+      arg->array[arg->cnt] = (void *) unwind_getip (ctx);
+
+      /* Check whether we make any progress.  */
+      _Unwind_Word cfa = unwind_getcfa (ctx);
+
+      if (arg->cnt > 0 && arg->array[arg->cnt - 1] == arg->array[arg->cnt]
+	 && cfa == arg->cfa)
+       return _URC_END_OF_STACK;
+      arg->cfa = cfa;
+    }
+  if (++arg->cnt == arg->size)
     return _URC_END_OF_STACK;
-  }
-  
   return _URC_NO_REASON;
 }
 
 int
-backtrace (void **array,int size )
+backtrace (array, size)
+     void **array;
+     int size;
 {
-  struct trace_arg arg = { .array = array, .size = size, .cnt = -1 };
-
+  struct trace_arg arg = { .array = array, .cfa = 0, .size = size, .cnt = -1 };
 #ifdef SHARED
   __libc_once_define (static, once);
 
@@ -115,6 +110,8 @@ backtrace (void **array,int size )
   if (size >= 1)
     unwind_backtrace (backtrace_helper, &arg);
 
+  /* _Unwind_Backtrace seems to put NULL address above
+     _start.  Fix it up here.  */
   if (arg.cnt > 1 && arg.array[arg.cnt - 1] == NULL)
     --arg.cnt;
   return arg.cnt != -1 ? arg.cnt : 0;
@@ -135,5 +132,3 @@ libc_freeres_fn (free_mem)
     }
 }
 #endif
-
-
