@@ -567,8 +567,20 @@ int designware_initialize(ulong base_addr, u32 interface, struct eth_device *dev
 	priv->rx_mac_descrtable =
 		uboot_dma_malloc(sizeof(struct dmamacdescr) * CONFIG_RX_DESCR_NUM, ARCH_DMA_MINALIGN);
 
+	if (priv->tx_mac_descrtable.vaddr == 0 || priv->tx_mac_descrtable.paddr == 0 ||
+	    priv->rx_mac_descrtable.vaddr == 0 || priv->rx_mac_descrtable.paddr == 0) {
+		printf("designware: out of DMA memory allocating descriptor table\n");
+		return -ENOMEM;
+	}
+
 	priv->txbuffs = uboot_dma_malloc(TX_TOTAL_BUFSIZE, ARCH_DMA_MINALIGN);
 	priv->rxbuffs = uboot_dma_malloc(RX_TOTAL_BUFSIZE, ARCH_DMA_MINALIGN);
+
+	if (priv->txbuffs.vaddr == 0 || priv->txbuffs.paddr == 0 ||
+	    priv->rxbuffs.vaddr == 0 || priv->rxbuffs.paddr == 0) {
+		printf("designware: out of DMA memory allocating RX/TX buffers\n");
+		return -ENOMEM;
+	}
 
 	memset((void*)priv->tx_mac_descrtable.vaddr, 0, priv->tx_mac_descrtable.size);
 	memset((void*)priv->rx_mac_descrtable.vaddr, 0, priv->rx_mac_descrtable.size);
