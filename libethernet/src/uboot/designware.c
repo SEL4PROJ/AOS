@@ -387,6 +387,8 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
 	desc_vptr->txrx_status &= ~(DESC_TXSTS_MSK);
 	desc_vptr->txrx_status |= DESC_TXSTS_OWNBYDMA;
 #else
+	/* Reset the descriptor size mask. Not sure what the intention of the old behaviour was... */
+	desc_vptr->dmamac_cntl &= ~DESC_TXCTRL_SIZE1MASK;
 
 	desc_vptr->dmamac_cntl |= ((length << DESC_TXCTRL_SIZE1SHFT) & DESC_TXCTRL_SIZE1MASK
 			       ) | DESC_TXCTRL_TXLAST |
