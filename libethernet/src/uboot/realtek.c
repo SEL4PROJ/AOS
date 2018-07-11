@@ -180,7 +180,7 @@ static int rtl8211x_parse_status(struct phy_device *phydev)
 			}
 
 			if ((i++ % 1000) == 0)
-				putc('.');
+				putchar('.');
 			uboot_udelay(1000);	/* 1 ms */
 			mii_reg = phy_read(phydev, MDIO_DEVAD_NONE,
 					MIIM_RTL8211x_PHY_STATUS);
@@ -233,7 +233,7 @@ static int rtl8211f_parse_status(struct phy_device *phydev)
 		}
 
 		if ((i++ % 1000) == 0)
-			putc('.');
+			putchar('.');
 		uboot_udelay(1000);
 		mii_reg = phy_read(phydev, MDIO_DEVAD_NONE,
 				   MIIM_RTL8211F_PHY_STATUS);
