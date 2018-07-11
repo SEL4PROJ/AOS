@@ -1,28 +1,42 @@
 /*
- * Copyright 2014, NICTA
+ * Copyright 2018, Data61
+ * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
+ * ABN 41 687 119 230.
  *
  * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
+ * the GNU General Public License version 2. Note that NO WARRANTY is provided.
+ * See "LICENSE_GPLv2.txt" for details.
  *
- * @TAG(NICTA_BSD)
+ * @TAG(DATA61_GPL)
  */
-
 #include "network.h"
 
 #include <autoconf.h>
+#include <assert.h>
+#include <fcntl.h>
+#include <string.h>
+#include <stdio.h>
+#include <poll.h>
+
+#include <cspace/cspace.h>
+#include <clock/timestamp.h>
+
 #undef PACKED // picotcp complains as it redefines this macro
 #include <pico_stack.h>
 #include <pico_device.h>
-#include <clock/timestamp.h>
+#include <pico_config.h>
+#include <pico_ipv4.h>
+#include <pico_socket.h>
+#include <pico_nat.h>
+#include <pico_icmp4.h>
+#include <pico_dns_client.h>
+#include <pico_dev_loop.h>
+#include <pico_dhcp_client.h>
+#include <pico_dhcp_server.h>
+#include <pico_ipfilter.h>
 
-#include <assert.h>
-#include <string.h>
-#include <stdio.h>
+#include <ethernet/ethernet.h>
 
-#include <cspace/cspace.h>
-
-#include "ringbuffer.h"
 #include "vmem_layout.h"
 #include "dma.h"
 #include "mapping.h"
@@ -36,6 +50,117 @@
 #    define SOS_NFS_DIR ""
 #  endif
 #endif
+
+
+/* TODO: Read this out on boot instead of hard-coding it... */
+const uint8_t OUR_MAC[6] = {0x00,0x1e,0x06,0x36,0x05,0xe5};
+
+static struct pico_device pico_dev;
+
+static int pico_eth_send(UNUSED struct pico_device *dev, void *input_buf, int len)
+{
+    if (ethif_send(input_buf, len) != ETHIF_NOERROR) {
+        /* If we get an error, just report that we didn't send anything */
+        return 0;
+    }
+    /* Currently assuming that sending always succeeds unless we get an error code.
+     * Given how the u-boot driver is structured, this seems to be a safe assumption. */
+    return len;
+}
+
+static int pico_eth_poll(UNUSED struct pico_device *dev, int loop_score)
+{
+    while (loop_score > 0) {
+        int len;
+        int retval = ethif_recv(&len); /* This will internally call 'ethif_process_received_packet'
+                                        * (if a packet is actually available) */
+        if(retval == ETHIF_ERROR || len == 0) {
+            break;
+        }
+        loop_score--;
+    }
+
+    /* return (original_loop_score - amount_of_packets_received) */
+    return loop_score;
+}
+
+/* Called by ethernet driver when a frame is received (inside an ethif_recv()) */
+void ethif_process_received_packet(uint8_t *in_packet, int len)
+{
+    /* Note that in_packet *must* be copied somewhere in this function, as the memory
+     * will be re-used by the ethernet driver after this function returns. */
+    pico_stack_recv(&pico_dev, in_packet, len);
+}
+
+/* This is a bit of a hack - we need a DMA size field in the ethif driver. */
+ethif_dma_addr_t ethif_dma_malloc(uint32_t size, uint32_t align)
+{
+    dma_addr_t addr = sos_dma_malloc(size, align);
+    ethif_dma_addr_t eaddr =
+        { .paddr = addr.paddr, .vaddr = addr.vaddr, .size = size };
+    ZF_LOGD("ethif_dma_malloc -> vaddr: %lx, paddr: %lx\n, sz: %lx",
+            eaddr.vaddr, eaddr.paddr, eaddr.size);
+    return eaddr;
+}
+
+void network_tick() {
+    pico_stack_tick();
+}
+
+void network_init(UNUSED cspace_t *cspace, UNUSED seL4_CPtr interrupt_ntfn)
+{
+    ZF_LOGI("\nInitialising network...\n\n");
+
+    /* Initialise ethernet interface first, because we won't bother initialising
+     * picotcp if the interface fails to be brought up */
+
+    /* Map the ethernet MAC MMIO registers into our address space */
+    uint64_t eth_base_vaddr =
+        (uint64_t)sos_map_device(cspace, ODROIDC2_ETH_PHYS_ADDR, ODROIDC2_ETH_PHYS_SIZE);
+
+    /* Populate DMA operations required by the ethernet driver */
+    ethif_dma_ops_t ethif_dma_ops;
+    ethif_dma_ops.dma_malloc = &ethif_dma_malloc;
+    ethif_dma_ops.dma_phys_to_virt = &sos_dma_phys_to_virt;
+    ethif_dma_ops.flush_dcache_range = &sos_dma_cache_clean_invalidate;
+    ethif_dma_ops.invalidate_dcache_range = &sos_dma_cache_invalidate;
+
+    /* Try initializing the device... */
+    int error = ethif_init(&ethif_dma_ops, eth_base_vaddr, OUR_MAC);
+    ZF_LOGF_IF(error != 0, "Failed to initialise ethernet interface");
+
+    /* Extract IP from .config */
+    struct pico_ip4 netmask;
+    struct pico_ip4 ipaddr;
+    struct pico_ip4 gateway;
+    struct pico_ip4 zero;
+
+    pico_stack_init();
+
+    memset(&pico_dev, 0, sizeof(struct pico_device));
+
+    pico_dev.send = pico_eth_send;
+    pico_dev.poll = pico_eth_poll; // TODO NULL if async
+
+    pico_dev.mtu = MAXIMUM_TRANSFER_UNIT;
+
+    error = pico_device_init(&pico_dev, "sos picotcp", OUR_MAC);
+    ZF_LOGF_IF(error, "Failed to init picotcp");
+
+    pico_string_to_ipv4(CONFIG_SOS_GATEWAY, &gateway.addr);
+    pico_string_to_ipv4(CONFIG_SOS_NETMASK, &netmask.addr);
+    pico_string_to_ipv4(CONFIG_SOS_IP, &ipaddr.addr);
+    pico_string_to_ipv4("0.0.0.0", &zero.addr);
+
+    pico_ipv4_link_add(&pico_dev, ipaddr, netmask);
+    pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
+}
+
+/* The below shall be resurrected when/if we move to IRQ driven */
+
+#if 0
+
+#include "ringbuffer.h"
 
 #define ARP_PRIME_TIMEOUT_MS     1000
 #define ARP_PRIME_RETRY_DELAY_MS   10
@@ -210,44 +335,4 @@ static int pico_eth_poll(struct pico_device *dev, int loop_score)
     return loop_score;
 }
 
-void network_init(UNUSED cspace_t *cspace, UNUSED seL4_CPtr interrupt_ntfn)
-{
-    /* Extract IP from .config */
-    struct pico_ip4 netmask;
-    struct pico_ip4 ipaddr;
-    struct pico_ip4 gateway;
-    struct pico_ip4 zero;
-
-    ZF_LOGI("\nInitialising network...\n\n");
-
-    pico_stack_init();
-
-    memset(&pico_dev, 0, sizeof(struct pico_device));
-
-    init_buffers();
-
-    pico_dev.send = pico_eth_send;
-    pico_dev.poll = pico_eth_poll; // TODO NULL if async
-    pico_dev.dsr = pico_eth_poll;
-
-    //TODO init ethdriver here
-    //needs to fill in mtu, mac
-    //int mtu = 0;
-    uint8_t mac[6] = {};
-   // it probably also needs to call pico_tx_complete, pico_rx_complete and allocate_rx_buf
-
-    int error = pico_device_init(&pico_dev, "sos picotcp", mac);
-    ZF_LOGF_IF(error, "Failed to init picotcp");
-
-    pico_string_to_ipv4(CONFIG_SOS_GATEWAY, &gateway.addr);
-    pico_string_to_ipv4(CONFIG_SOS_NETMASK, &netmask.addr);
-    pico_string_to_ipv4(CONFIG_SOS_IP, &ipaddr.addr);
-    pico_string_to_ipv4("0.0.0.0", &zero.addr);
-
-    pico_ipv4_link_add(&pico_dev, ipaddr, netmask);
-    pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
-
-    //TODO from here we should set up a basic tcp echo to see if it works
-    // then get libserial going, then libnfs
-
-}
+#endif
