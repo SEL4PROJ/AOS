@@ -1,4 +1,8 @@
 /*
+ * @TAG(OTHER_GPL)
+ */
+
+/*
  * (C) Copyright 2008
  * Benjamin Warren, biggerbadderben@gmail.com
  *

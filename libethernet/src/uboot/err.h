@@ -1,3 +1,6 @@
+/*
+ * @TAG(OTHER_GPL)
+ */
 #ifndef _LINUX_ERR_H
 #define _LINUX_ERR_H
 

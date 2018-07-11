@@ -1,4 +1,8 @@
 /*
+ * @TAG(OTHER_GPL)
+ */
+
+/*
  * Generic PHY Management code
  *
  * SPDX-License-Identifier:	GPL-2.0+

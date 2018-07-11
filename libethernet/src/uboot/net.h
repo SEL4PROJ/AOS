@@ -1,4 +1,8 @@
 /*
+ * @TAG(OTHER_GPL)
+ */
+
+/*
  *	LiMon Monitor (LiMon) - Network.
  *
  *	Copyright 1994 - 2000 Neil Russell.

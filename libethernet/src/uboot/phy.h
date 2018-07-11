@@ -1,4 +1,8 @@
 /*
+ * @TAG(OTHER_GPL)
+ */
+
+/*
  * Copyright 2011 Freescale Semiconductor, Inc.
  *	Andy Fleming <afleming@gmail.com>
  *
