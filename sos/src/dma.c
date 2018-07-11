@@ -77,7 +77,7 @@ int dma_init(cspace_t *cspace, seL4_CPtr vspace, seL4_CPtr ut, uintptr_t pstart,
 
 dma_addr_t sos_dma_malloc(size_t size, int align)
 {
-    dma_addr_t addr = {};
+    dma_addr_t addr = {0, 0};
 
     dma.pnext = DMA_ALIGN(dma.pnext);
 
