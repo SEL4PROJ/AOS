@@ -38,6 +38,20 @@ int dma_init(cspace_t *cspace, seL4_CPtr vspace, seL4_CPtr ut, uintptr_t pstart,
  */
 dma_addr_t sos_dma_malloc(size_t size, int align);
 
+/**
+ * Convert the provided physical DMA address into a virtual address
+ *
+ * @param address to convert
+ */
+uintptr_t sos_dma_phys_to_virt(uintptr_t phys);
+
+/**
+ * Convert the provided virtual DMA address into a physical address
+ *
+ * @param address to convert
+ */
+uintptr_t sos_dma_virt_to_phys(uintptr_t virt);
+
 /* Cache operation functions.
  * @param addr the start address to operate on.
  * @param size amount in bytes to operate on.

@@ -47,12 +47,12 @@ typedef struct {
 /* global dma data structure */
 static dma_t dma;
 
-static inline uintptr_t phys_to_virt(uintptr_t phys)
+uintptr_t sos_dma_phys_to_virt(uintptr_t phys)
 {
     return dma.vstart + (phys - dma.pstart);
 }
 
-static inline uintptr_t virt_to_phys(uintptr_t vaddr)
+uintptr_t sos_dma_virt_to_phys(uintptr_t vaddr)
 {
     return dma.pstart + (vaddr - dma.vstart);
 }
@@ -70,8 +70,8 @@ int dma_init(cspace_t *cspace, seL4_CPtr vspace, seL4_CPtr ut, uintptr_t pstart,
     dma.vspace = vspace;
 
     /* now map the frame */
-    uintptr_t vaddr = phys_to_virt(dma.pstart);
-    ZF_LOGI("DMA initialised %p <--> %p\n", (void *) vaddr, (void *) phys_to_virt(dma.pend));
+    uintptr_t vaddr = sos_dma_phys_to_virt(dma.pstart);
+    ZF_LOGI("DMA initialised %p <--> %p\n", (void *) vaddr, (void *) sos_dma_phys_to_virt(dma.pend));
     return map_frame(NULL, ut, dma.vspace, vaddr, seL4_AllRights, seL4_ARM_Default_VMAttributes);
 }
 
@@ -89,7 +89,7 @@ dma_addr_t sos_dma_malloc(size_t size, int align)
         return addr;
     }
 
-    addr.vaddr = phys_to_virt(dma.pnext);
+    addr.vaddr = sos_dma_phys_to_virt(dma.pnext);
     addr.paddr = dma.pnext;
 
     /* set return values */
