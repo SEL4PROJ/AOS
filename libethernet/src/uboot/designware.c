@@ -37,11 +37,11 @@ static int dw_mdio_read(struct mii_dev *bus, int addr, int devad, int reg)
 
 	writel(miiaddr | MII_CLKRANGE_150_250M | MII_BUSY, &mac_p->miiaddr);
 
-	start = get_timer(0);
-	while (get_timer(start) < timeout) {
+	start = uboot_get_timer(0);
+	while (uboot_get_timer(start) < timeout) {
 		if (!(readl(&mac_p->miiaddr) & MII_BUSY))
 			return readl(&mac_p->miidata);
-		udelay(10);
+		uboot_udelay(10);
 	};
 
 	return -ETIMEDOUT;
@@ -66,13 +66,13 @@ static int dw_mdio_write(struct mii_dev *bus, int addr, int devad, int reg,
 
 	writel(miiaddr | MII_CLKRANGE_150_250M | MII_BUSY, &mac_p->miiaddr);
 
-	start = get_timer(0);
-	while (get_timer(start) < timeout) {
+	start = uboot_get_timer(0);
+	while (uboot_get_timer(start) < timeout) {
 		if (!(readl(&mac_p->miiaddr) & MII_BUSY)) {
 			ret = 0;
 			break;
 		}
-		udelay(10);
+		uboot_udelay(10);
 	};
 
 	return ret;
@@ -94,19 +94,19 @@ static int dw_mdio_reset(struct mii_dev *bus)
 	if (ret)
 		return ret;
 
-	udelay(pdata->reset_delays[0]);
+	uboot_udelay(pdata->reset_delays[0]);
 
 	ret = dm_gpio_set_value(&priv->reset_gpio, 1);
 	if (ret)
 		return ret;
 
-	udelay(pdata->reset_delays[1]);
+	uboot_udelay(pdata->reset_delays[1]);
 
 	ret = dm_gpio_set_value(&priv->reset_gpio, 0);
 	if (ret)
 		return ret;
 
-	udelay(pdata->reset_delays[2]);
+	uboot_udelay(pdata->reset_delays[2]);
 
 	return 0;
 }
@@ -277,19 +277,19 @@ int designware_eth_init(struct dw_eth_dev *priv, u8 *enetaddr)
 {
 	struct eth_mac_regs *mac_p = priv->mac_regs_p;
 	struct eth_dma_regs *dma_p = priv->dma_regs_p;
-	unsigned int start;
+	ulong start;
 	int ret;
 
 	writel(readl(&dma_p->busmode) | DMAMAC_SRST, &dma_p->busmode);
 
-	start = get_timer(0);
+	start = uboot_get_timer(0);
 	while (readl(&dma_p->busmode) & DMAMAC_SRST) {
-		if (get_timer(start) >= CONFIG_MACRESET_TIMEOUT) {
+		if (uboot_get_timer(start) >= CONFIG_MACRESET_TIMEOUT) {
 			printf("DMA reset timeout\n");
 			return -ETIMEDOUT;
 		}
 
-		mdelay(100);
+		uboot_udelay(100000);
 	};
 
 	/*

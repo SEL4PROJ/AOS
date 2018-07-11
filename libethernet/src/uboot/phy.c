@@ -256,7 +256,7 @@ int genphy_update_link(struct phy_device *phydev)
 			if ((i++ % 500) == 0)
 				printf(".");
 
-			udelay(1000);	/* 1 ms */
+			uboot_udelay(1000);	/* 1 ms */
 			mii_reg = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMSR);
 		}
 		printf(" done\n");
@@ -767,7 +767,7 @@ int phy_reset(struct phy_device *phydev)
 	}
 
 #ifdef CONFIG_PHY_RESET_DELAY
-	udelay(CONFIG_PHY_RESET_DELAY);	/* Intel LXT971A needs this */
+	uboot_udelay(CONFIG_PHY_RESET_DELAY);	/* Intel LXT971A needs this */
 #endif
 	/*
 	 * Poll the control register for the reset bit to go to 0 (it is
@@ -782,7 +782,7 @@ int phy_reset(struct phy_device *phydev)
 			debug("PHY status read failed\n");
 			return -1;
 		}
-		udelay(1000);
+		uboot_udelay(1000);
 	}
 
 	if (reg & BMCR_RESET) {
@@ -816,7 +816,7 @@ struct phy_device *phy_find_by_mask(struct mii_dev *bus, unsigned phy_mask,
 		bus->reset(bus);
 
 		/* Wait 15ms to make sure the PHY has come out of hard reset */
-		udelay(15000);
+		uboot_udelay(15000);
 	}
 
 	return get_phy_device_by_mask(bus, phy_mask, interface);
