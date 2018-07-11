@@ -16,12 +16,26 @@
 #include <stdint.h>
 #include <string.h>
 #include <ethernet/ethernet.h>
+#include <clock/timestamp.h>
 
-/****************************************
- * Adaptors to u-boot functions         *
- ****************************************/
+/*****************************************
+ * Adaptors for u-boot functions         *
+ *****************************************/
 
 ethif_dma_ops_t *uboot_get_dma_ops();
+
+extern uint64_t uboot_timestamp_freq;
+
+void uboot_timer_init();
+
+static inline void uboot_udelay(uint32_t us)
+{
+    udelay(us, uboot_timestamp_freq);
+}
+
+static inline uint64_t uboot_get_timer(uint64_t base) {
+    return timestamp_ms(uboot_timestamp_freq) - base;
+}
 
 static inline ethif_dma_addr_t uboot_dma_malloc(uint32_t size, uint32_t align)
 {
@@ -77,8 +91,6 @@ static inline uint32_t uboot_invalidate_dcache_range(unsigned long start, unsign
 #define BITS_PER_LONG 32
 
 #define ENOTSUPP	524	/* Operation is not supported */
-
-void udelay(uint32_t us);
 
 unsigned long simple_strtoul(const char *cp, char **endp, unsigned int base);
 

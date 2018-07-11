@@ -9,17 +9,19 @@
  *
  * @TAG(DATA61_GPL)
  */
-
 #include <stdio.h>
 #include <stdint.h>
 #include <ctype.h>
 
-void udelay(uint32_t us){
-    volatile int i;
-    for(; us > 0; us--){
-        for(i = 0; i < 100; i++){
-        }
-    }
+#include <utils/zf_log.h>
+
+#include "unimplemented.h"
+
+uint64_t uboot_timestamp_freq = 0;
+
+void uboot_timer_init()
+{
+    uboot_timestamp_freq = timestamp_get_freq();
 }
 
 unsigned long simple_strtoul(const char *cp, char **endp,
