@@ -11,11 +11,23 @@
  */
 #pragma once
 
-
-/* this is a dumping ground */
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
+#include <ethernet/ethernet.h>
+
+/***********************************************************************************
+ * The rest of this file is a dumping ground of missing symbols required by u-boot *
+ ***********************************************************************************/
+
+#define CONFIG_SYS_CACHELINE_SIZE 64 /* for cortex a53 MPCore */
+#define ARCH_DMA_MINALIGN	CONFIG_SYS_CACHELINE_SIZE
+
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
 
 #ifndef RESOURCE
 #define RESOURCE(mapper, id) ps_io_map(mapper,  (uintptr_t) id##_PADDR, id##_SIZE, 0, PS_MEM_NORMAL)

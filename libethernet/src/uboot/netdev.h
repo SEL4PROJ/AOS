@@ -16,7 +16,6 @@
 #ifndef _NETDEV_H_
 #define _NETDEV_H_
 
-#include <platsupport/io.h>
 #include "net.h"
 
 /*
