@@ -59,6 +59,9 @@
 /* The linker will link this symbol to the start address  *
  * of an archive of attached applications.                */
 extern char _cpio_archive[];
+extern char __eh_frame_start[];
+/* provided by gcc */
+extern void (__register_frame)(void *);
 
 /* root tasks cspace */
 static cspace_t cspace;
@@ -500,6 +503,10 @@ int main(void)
     /* bootinfo was set as an environment variable in _sel4_start */
     char *bi_string = getenv("bootinfo");
     ZF_LOGF_IF(!bi_string, "Could not parse bootinfo from env.");
+
+    /* register the location of the unwind_tables -- this is required for
+     * backtrace() to work */
+    __register_frame(&__eh_frame_start);
 
     seL4_BootInfo *boot_info;
     if (sscanf(bi_string, "%p", &boot_info) != 1) {

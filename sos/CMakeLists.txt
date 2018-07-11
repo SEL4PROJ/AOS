@@ -38,6 +38,8 @@ add_config_library(sos "${configure_string}")
 
 # warn about everything
 add_compile_options(-Wall -W -Wextra)
+# enable stack unwind tables -- this allows backtrace() to work.
+add_compile_options(-funwind-tables)
 add_definitions(-DSTDSOCKET)
 add_definitions(-U__linux__)
 add_definitions(-D_SYS_POLL_H)
@@ -50,10 +52,11 @@ MakeCPIO(archive.o "${apps}")
 add_executable(sos EXCLUDE_FROM_ALL crt/sel4_crt0.S src/bootstrap.c src/dma.c src/elf.c src/main.c
                src/mapping.c src/network.c src/ut.c src/tests.c src/sys/backtrace.c src/sys/sys_exit.c
                src/sys/sys_morecore.c src/sys/sys_stdio.c src/sys/sys_thread.c src/sys/sys_time.c
-               src/drivers/uart.c archive.o)
+               src/drivers/uart.c archive.o src/sos.lds)
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(sos Configuration muslc sel4 elf cpio serial clock sel4cspace aos utils picotcp
                       picotcp_bsd nfs)
 
+set_property(TARGET sos APPEND_STRING PROPERTY LINK_FLAGS " -T ${CMAKE_CURRENT_SOURCE_DIR}/src/sos.lds ")
 # Set this image as the rootserver
 DeclareRootserver(sos)
