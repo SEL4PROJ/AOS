@@ -46,7 +46,7 @@ static inline uint64_t timestamp_ms(uint64_t freq)
 static inline uint64_t timestamp_us(uint64_t freq)
 {
     assert(freq != 0);
-    return timestamp_ms(freq) * US_IN_MS;
+    return (US_IN_S * timestamp_ticks()) / freq;
 }
 
 static inline void udelay(uint64_t us, uint64_t freq)
