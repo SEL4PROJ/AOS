@@ -665,7 +665,7 @@ int net_send_udp_packet(uchar *ether, struct in_addr dest, int dport,
 			int sport, int payload_len);
 
 /* Processes a received packet */
-void net_process_received_packet(uchar *in_packet, int len);
+void ethif_process_received_packet(uchar *in_packet, int len);
 
 #ifdef CONFIG_NETCONSOLE
 void nc_start(void);

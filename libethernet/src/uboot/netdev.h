@@ -40,7 +40,7 @@ int calxedaxgmac_initialize(u32 id, ulong base_addr);
 int cs8900_initialize(u8 dev_num, int base_addr);
 int davinci_emac_initialize(void);
 int dc21x4x_initialize(bd_t *bis);
-int designware_initialize(ulong base_addr, u32 interface);
+int designware_initialize(ulong base_addr, u32 interface, struct eth_device *dev);
 int dm9000_initialize(bd_t *bis);
 int dnet_eth_initialize(int id, void *regs, unsigned int phy_addr);
 int e1000_initialize(bd_t *bis);
@@ -96,7 +96,6 @@ int xilinx_ll_temac_eth_init(bd_t *bis, unsigned long base_addr, int flags,
 int zynq_gem_of_init(const void *blob);
 int zynq_gem_initialize(phys_addr_t base_addr,
 			int phy_addr, u32 emio);
-void zynq_set_gem_ioops(ps_io_ops_t *io_ops);
 void zynq_gem_handle_irq(int irq);
 void zynq_set_gem_iobase(unsigned int base_addr);
 

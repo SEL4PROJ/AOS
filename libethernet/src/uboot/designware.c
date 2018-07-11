@@ -496,7 +496,7 @@ static int dw_phy_init(struct dw_eth_dev *priv, void *dev)
 }
 
 #ifndef CONFIG_DM_ETH
-static int dw_eth_init(struct eth_device *dev, bd_t *bis)
+static int dw_eth_init(struct eth_device *dev)
 {
 	int ret;
 
@@ -520,11 +520,11 @@ static int dw_eth_recv(struct eth_device *dev)
 	length = _dw_eth_recv(dev->priv, &packet);
 	if (length == -EAGAIN)
 		return 0;
-	net_process_received_packet(packet, length);
+	ethif_process_received_packet(packet, length);
 
 	_dw_free_pkt(dev->priv);
 
-	return 0;
+	return length;
 }
 
 static void dw_eth_halt(struct eth_device *dev)
@@ -537,21 +537,14 @@ static int dw_write_hwaddr(struct eth_device *dev)
 	return _dw_write_hwaddr(dev->priv, dev->enetaddr);
 }
 
-int designware_initialize(ulong base_addr, u32 interface)
+int designware_initialize(ulong base_addr, u32 interface, struct eth_device *dev)
 {
-	struct eth_device *dev;
 	struct dw_eth_dev *priv;
 
-	dev = (struct eth_device *) malloc(sizeof(struct eth_device));
-	if (!dev)
-		return -ENOMEM;
+	/* This needs to exist for driver lifetime. Doesn't need to be DMA
+	 * any more as we allocate our DMA descriptors below */
+	priv = (struct dw_eth_dev *) malloc(sizeof(struct dw_eth_dev));
 
-	/*
-	 * Since the priv structure contains the descriptors which need a strict
-	 * buswidth alignment, memalign is used to allocate memory
-	 */
-	priv = (struct dw_eth_dev *) memalign(ARCH_DMA_MINALIGN,
-					      sizeof(struct dw_eth_dev));
 	if (!priv) {
 		free(dev);
 		return -ENOMEM;
@@ -594,8 +587,6 @@ int designware_initialize(ulong base_addr, u32 interface)
 	dev->recv = dw_eth_recv;
 	dev->halt = dw_eth_halt;
 	dev->write_hwaddr = dw_write_hwaddr;
-
-	eth_register(dev);
 
 	priv->interface = interface;
 
