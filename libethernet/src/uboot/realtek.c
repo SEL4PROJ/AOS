@@ -10,10 +10,9 @@
  * author Andy Fleming
  * Copyright 2016 Karsten Merker <merker@debian.org>
  */
-#include <config.h>
-#include <common.h>
-#include <linux/bitops.h>
-#include <phy.h>
+#include "common.h"
+#include "bitops.h"
+#include "phy.h"
 
 #define PHY_RTL8211x_FORCE_MASTER BIT(1)
 #define PHY_RTL8211E_PINE64_GIGABIT_FIX BIT(2)

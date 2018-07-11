@@ -12,18 +12,12 @@
  * Designware ethernet IP driver for U-Boot
  */
 
-#include <common.h>
-#include <clk.h>
-#include <dm.h>
+#include "common.h"
+#include "net.h"
 #include <errno.h>
-#include <miiphy.h>
+#include "miiphy.h"
 #include <malloc.h>
-#include <pci.h>
-#include <linux/compiler.h>
-#include <linux/err.h>
-#include <linux/kernel.h>
-#include <asm/io.h>
-#include <power/regulator.h>
+#include "../io.h"
 #include "designware.h"
 
 static int dw_mdio_read(struct mii_dev *bus, int addr, int devad, int reg)

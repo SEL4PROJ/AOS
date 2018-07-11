@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include "config.h"
 #include "../unimplemented.h"	/* for nton* / ntoh* stuff */
+#include "phy.h"
 
 #define DEBUG_LL_STATE 0	/* Link local state machine changes */
 #define DEBUG_DEV_PKT 0		/* Packets or info directed to the device */
