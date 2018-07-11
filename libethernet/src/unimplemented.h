@@ -1,5 +1,5 @@
 /*
- * Copyright 2017, Data61
+ * Copyright 2018, Data61
  * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
  * ABN 41 687 119 230.
  *
@@ -9,9 +9,8 @@
  *
  * @TAG(DATA61_GPL)
  */
+#pragma once
 
-#ifndef __UNIMPLEMENTED_H__
-#define __UNIMPLEMENTED_H__
 
 /* this is a dumping ground */
 #include <stddef.h>
@@ -205,5 +204,3 @@ typedef struct bd_info {
 	} bi_dram[CONFIG_NR_DRAM_BANKS];
 #endif /* CONFIG_NR_DRAM_BANKS */
 } bd_t;
-
-#endif /* __UNIMPLEMENTED_H__ */

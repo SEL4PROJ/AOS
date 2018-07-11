@@ -1,5 +1,5 @@
 /*
- * Copyright 2017, Data61
+ * Copyright 2018, Data61
  * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
  * ABN 41 687 119 230.
  *
@@ -9,9 +9,7 @@
  *
  * @TAG(DATA61_GPL)
  */
-
-#ifndef _ETHDRIVER_ZYNQ7000_IO_H_
-#define _ETHDRIVER_ZYNQ7000_IO_H_
+#pragma once
 
 #define __arch_getl(addr)         *((volatile uint32_t*)(addr))
 #define __arch_getw(addr)         *((volatile uint16_t*)(addr))
@@ -160,5 +158,3 @@
 #define clrbits_8(addr, clear) clrbits(8, addr, clear)
 #define setbits_8(addr, set) setbits(8, addr, set)
 #define clrsetbits_8(addr, clear, set) clrsetbits(8, addr, clear, set)
-
-#endif /* _ETHDRIVER_ZYNQ7000_IO_H_ */
