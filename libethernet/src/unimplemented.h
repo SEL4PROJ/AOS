@@ -17,6 +17,7 @@
 #include <string.h>
 #include <ethernet/ethernet.h>
 #include <clock/timestamp.h>
+#include <utils/util.h>
 
 /*****************************************
  * Adaptors for u-boot functions         *
@@ -122,8 +123,6 @@ typedef u64 __u64;
 typedef u32 __u32;
 typedef u16 __u16;
 typedef u8  __u8;
-
-typedef u8  bool;
 
 #define __bitwise /*__attribute__((bitwise))*/
 #define __force /* __attribute__((force)) */

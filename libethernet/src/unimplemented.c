@@ -13,8 +13,6 @@
 #include <stdint.h>
 #include <ctype.h>
 
-#include <utils/zf_log.h>
-
 #include "unimplemented.h"
 
 uint64_t uboot_timestamp_freq = 0;
