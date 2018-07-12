@@ -13,26 +13,12 @@
 #include <sel4/sel4.h>
 #include <utils/util.h>
 
-#include "execinfo.h" /*for backtrace()*/
-
 static void sos_abort(void)
 {
     printf("SOS aborted\n");
-
-    /* Printout backtrace*/
-    void *array[10] = {NULL};
-    int size = 0;
-
-    size = backtrace(array, 10);
-    if (size) {
-
-        printf("Backtracing stack PCs:  ");
-
-        for (int i = 0; i < size; i++) {
-            printf("0x%p  ", array[i]);
-        }
-        printf("\n");
-    }
+    printf("To get a stack trace, call print_backtrace() from sos/src/execinfo.h\n");
+    printf("at the location of the cause of the abort.\n");
+    printf("And paste the resulting addresses into backtrace.py\n");
     while (1)
         ; /* We don't return after this */
 }
