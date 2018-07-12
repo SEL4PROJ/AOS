@@ -19,8 +19,10 @@ static void sos_abort(void)
     printf("To get a stack trace, call print_backtrace() from sos/src/execinfo.h\n");
     printf("at the location of the cause of the abort.\n");
     printf("And paste the resulting addresses into backtrace.py\n");
-    while (1)
-        ; /* We don't return after this */
+    while (1) {
+        seL4_Yield();
+    }
+    /* We don't return after this */
 }
 
 long
