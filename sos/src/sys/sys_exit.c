@@ -15,9 +15,9 @@
 
 #include "execinfo.h" /*for backtrace()*/
 
-static void sel4_abort(void)
+static void sos_abort(void)
 {
-    printf("seL4 root server aborted\n");
+    printf("SOS aborted\n");
 
     /* Printout backtrace*/
     void *array[10] = {NULL};
@@ -69,14 +69,14 @@ long
 sys_tgkill(UNUSED va_list ap)
 {
     ZF_LOGV("%s assuming self kill\n", __FUNCTION__);
-    sel4_abort();
+    sos_abort();
     return 0;
 }
 
 long sys_tkill(UNUSED va_list ap)
 {
     ZF_LOGV("%s assuming self kill\n", __FUNCTION__);
-    sel4_abort();
+    sos_abort();
     return 0;
 }
 
