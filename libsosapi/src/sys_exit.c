@@ -15,9 +15,8 @@
 #include "sos.h"
 
 static void
-sel4_abort()
+sosapi_abort()
 {
-    printf("sos aborting\n");
     sos_process_delete(sos_my_id());
     while (1); /* We don't return after this */
 }
@@ -46,21 +45,21 @@ sys_getpid(va_list ap)
 long
 sys_exit(va_list ap)
 {
-    abort();
+    sosapi_abort();
     return 0;
 }
 
 long
 sys_exit_group(va_list ap)
 {
-    abort();
+    sosapi_abort();
     return 0;
 }
 
 long
 sys_tgkill(va_list ap)
 {
-    sel4_abort();
+    sosapi_abort();
     return 0;
 }
 
