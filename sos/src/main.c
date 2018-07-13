@@ -37,9 +37,6 @@
 
 #include <aos/vsyscall.h>
 
-/* This is the cptr where a clients syscall enpoint will
- * be stored in the clients cspace. */
-#define USER_EP_CAP          (1)
 /* To differentiate between signals from notification objects and and IPC messages,
  * we assign a badge to the notification object. The badge that we receive will
  * be the bitwise 'OR' of the notification object badge and the badges
