@@ -50,14 +50,27 @@ typedef struct {
 } ethif_dma_ops_t;
 
 /**
+ * Called by ethernet driver when a frame is received (inside an ethif_recv())
+ * This function must be defined by code which uses this driver, and passed into ethif_init.
+ *
+ * See ethif_recv for more information.
+ *
+ * @param in_packet packet received - *must* be copied in this function, memory will be re-used later
+ * @param len       length of received packet
+ */
+typedef void (*ethif_recv_callback_t)(uint8_t *in_packet, int len);
+
+/**
  * Initialise the ethernet interface.
  *
- * @param ops       populated ethif_dma_ops_t containg DMA operations for use by the driver
- * @param base_addr virtual address of the ethernet MAC (from sos_map_device)
- * @param mac       hardware MAC address that will be programmed into the interface
+ * @param base_addr      virtual address of the ethernet MAC (from sos_map_device)
+ * @param mac            hardware MAC address that will be programmed into the interface
+ * @param ops            populated ethif_dma_ops_t containg DMA operations for use by the driver
+ * @param recv_callback  user-defined ethif_recv_callback_t.
  * @return ethif_err_t
  */
-ethif_err_t ethif_init(ethif_dma_ops_t *ops, uint64_t base_addr, const uint8_t mac[6]);
+ethif_err_t ethif_init(uint64_t base_addr, const uint8_t mac[6], ethif_dma_ops_t *ops,
+                       ethif_recv_callback_t recv_callback);
 
 /**
  * Queue the provided frame for transmission, and send at next opportunity.
@@ -75,24 +88,11 @@ ethif_err_t ethif_send(uint8_t *buf, uint32_t len);
  * Poll the receive buffers for a packet.
  *
  * This function does not block.
- * Calls user-defined 'ethif_process_received_packet' if a packet arrives, with the packet contents.
+ * Calls user-defined 'ethif_recv_callback_t' if a packet arrives, with the packet contents.
  * Note that ETHIF_NOERROR is still returned if no packets are available, however the packet
  * length will be set to 0.
- *
- * TODO: nicen grandfathered u-boot semantics?
  *
  * @param len  pointer to variable to store packet length (0 if no packets)
  * @return ethif_err_t
  */
 ethif_err_t ethif_recv(int *len);
-
-/**
- * Called by ethernet driver when a frame is received (inside an ethif_recv())
- * This function must be defined by code which uses this driver.
- *
- * See ethif_recv.
- *
- * @param in_packet packet received - *must* be copied in this function, memory will be re-used later
- * @param len       length of received packet
- */
-void ethif_process_received_packet(uint8_t *in_packet, int len);

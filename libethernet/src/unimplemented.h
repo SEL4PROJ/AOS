@@ -25,6 +25,8 @@
 
 ethif_dma_ops_t *uboot_get_dma_ops();
 
+void uboot_process_received_packet(uint8_t *in_packet, int len);
+
 extern uint64_t uboot_timestamp_freq;
 
 void uboot_timer_init();

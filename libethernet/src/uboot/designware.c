@@ -522,7 +522,7 @@ static int dw_eth_recv(struct eth_device *dev)
 	length = _dw_eth_recv(dev->priv, &packet);
 	if (length == -EAGAIN)
 		return 0;
-	ethif_process_received_packet(packet, length);
+	uboot_process_received_packet(packet, length);
 
 	_dw_free_pkt(dev->priv);
 

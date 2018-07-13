@@ -72,7 +72,7 @@ static int pico_eth_poll(UNUSED struct pico_device *dev, int loop_score)
 {
     while (loop_score > 0) {
         int len;
-        int retval = ethif_recv(&len); /* This will internally call 'ethif_process_received_packet'
+        int retval = ethif_recv(&len); /* This will internally call 'raw_recv_callback'
                                         * (if a packet is actually available) */
         if(retval == ETHIF_ERROR || len == 0) {
             break;
@@ -85,7 +85,7 @@ static int pico_eth_poll(UNUSED struct pico_device *dev, int loop_score)
 }
 
 /* Called by ethernet driver when a frame is received (inside an ethif_recv()) */
-void ethif_process_received_packet(uint8_t *in_packet, int len)
+void raw_recv_callback(uint8_t *in_packet, int len)
 {
     /* Note that in_packet *must* be copied somewhere in this function, as the memory
      * will be re-used by the ethernet driver after this function returns. */
@@ -126,7 +126,7 @@ void network_init(UNUSED cspace_t *cspace, UNUSED seL4_CPtr interrupt_ntfn)
     ethif_dma_ops.invalidate_dcache_range = &sos_dma_cache_invalidate;
 
     /* Try initializing the device... */
-    int error = ethif_init(&ethif_dma_ops, eth_base_vaddr, OUR_MAC);
+    int error = ethif_init(eth_base_vaddr, OUR_MAC, &ethif_dma_ops, &raw_recv_callback);
     ZF_LOGF_IF(error != 0, "Failed to initialise ethernet interface");
 
     /* Extract IP from .config */
