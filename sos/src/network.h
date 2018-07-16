@@ -18,12 +18,10 @@
  * Initialises the network stack
  *
  * @param cspace         for creating slots for mappings
- * @param interrupt_ntfn The notification object that the driver should use for registering IRQs
- *
  */
-void network_init(cspace_t *cspace, seL4_CPtr interrupt_ntfn);
+void network_init(cspace_t *cspace);
 
 /**
  * Tell the network driver to handle any pending events
  */
-void network_irq(void);
+void network_tick(void);

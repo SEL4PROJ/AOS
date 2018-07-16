@@ -131,12 +131,12 @@ void nfslib_tick()
     }
 }
 
-void network_tick() {
+void network_tick(void) {
     pico_bsd_stack_tick();
     nfslib_tick();
 }
 
-void network_init(UNUSED cspace_t *cspace, UNUSED seL4_CPtr interrupt_ntfn)
+void network_init(cspace_t *cspace)
 {
     ZF_LOGI("\nInitialising network...\n\n");
 

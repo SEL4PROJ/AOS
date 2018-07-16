@@ -121,7 +121,7 @@ NORETURN void syscall_loop(seL4_CPtr ep, UNUSED seL4_CPtr ntfn)
         if (badge & IRQ_EP_BADGE) {
             /* Interrupt */
             if (badge & IRQ_BADGE_NETWORK) {
-                network_irq();
+                network_tick();
             }
         } else if (label == seL4_Fault_NullFault) {
             /* System call */
@@ -481,7 +481,7 @@ NORETURN void *main_continued(UNUSED void *arg)
 
     /* Initialise the network hardware */
     printf("Network init\n");
-    network_init(&cspace, badge_irq_ep(ntfn, IRQ_BADGE_NETWORK));
+    network_init();
 
     /* Start the user application */
     printf("Start first process\n");
