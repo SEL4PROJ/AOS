@@ -84,10 +84,6 @@ static struct {
     seL4_CPtr stack;
 } tty_test_process;
 
-/**
- * NFS mount point
- */
-
 void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
 {
 

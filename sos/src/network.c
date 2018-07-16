@@ -38,6 +38,8 @@
 
 #include <ethernet/ethernet.h>
 
+#include <nfsc/libnfs.h>
+
 #include "vmem_layout.h"
 #include "dma.h"
 #include "mapping.h"
@@ -57,6 +59,8 @@
 const uint8_t OUR_MAC[6] = {0x00,0x1e,0x06,0x36,0x05,0xe5};
 
 static struct pico_device pico_dev;
+static struct nfs_context *nfs = NULL;
+static void nfs_mount_cb(int status, struct nfs_context *nfs, void *data, void *private_data);
 
 static int pico_eth_send(UNUSED struct pico_device *dev, void *input_buf, int len)
 {
@@ -104,8 +108,32 @@ ethif_dma_addr_t ethif_dma_malloc(uint32_t size, uint32_t align)
     return eaddr;
 }
 
+void nfslib_tick()
+{
+    struct pollfd pfd = {
+        .fd = nfs_get_fd(nfs),
+        .events = nfs_which_events(nfs)
+    };
+
+    /* Poll with zero timeout, so we return immediately */
+    int poll_ret = poll(&pfd, 1, 0);
+
+    ZF_LOGF_IF(poll_ret < 0, "poll() failed");
+
+    if (poll_ret == 0) {
+        /* Nothing of interest to NFS happened on the IP stack since last
+         * time we checked, so don't bother continuing */
+        return;
+    }
+
+    if (nfs_service(nfs, pfd.revents) < 0) {
+        printf("nfs_service failed\n");
+    }
+}
+
 void network_tick() {
     pico_bsd_stack_tick();
+    nfslib_tick();
 }
 
 void network_init(UNUSED cspace_t *cspace, UNUSED seL4_CPtr interrupt_ntfn)
@@ -156,6 +184,13 @@ void network_init(UNUSED cspace_t *cspace, UNUSED seL4_CPtr interrupt_ntfn)
 
     pico_ipv4_link_add(&pico_dev, ipaddr, netmask);
     pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
+
+    nfs = nfs_init_context();
+    ZF_LOGF_IF(nfs == NULL, "Failed to init NFS context");
+
+    nfs_set_debug(nfs, 10);
+    int ret = nfs_mount_async(nfs, CONFIG_SOS_GATEWAY, SOS_NFS_DIR, nfs_mount_cb, NULL);
+    ZF_LOGF_IF(ret != 0, "NFS Mount failed: %s", nfs_get_error(nfs));
 }
 
 /* The below shall be resurrected when/if we move to IRQ driven */
@@ -338,3 +373,13 @@ static int pico_eth_poll(struct pico_device *dev, int loop_score)
 }
 
 #endif
+
+void nfs_mount_cb(int status, UNUSED struct nfs_context *nfs, void *data,
+                  void *private_data)
+{
+    if (status < 0) {
+        ZF_LOGF("mount/mnt call failed with \"%s\"\n", (char *)data);
+    }
+
+    printf("Mounted nfs dir %s\n", SOS_NFS_DIR);
+}
