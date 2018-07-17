@@ -375,7 +375,7 @@ static int pico_eth_poll(struct pico_device *dev, int loop_score)
 #endif
 
 void nfs_mount_cb(int status, UNUSED struct nfs_context *nfs, void *data,
-                  void *private_data)
+                  UNUSED void *private_data)
 {
     if (status < 0) {
         ZF_LOGF("mount/mnt call failed with \"%s\"\n", (char *)data);

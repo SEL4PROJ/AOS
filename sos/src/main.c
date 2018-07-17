@@ -478,7 +478,7 @@ NORETURN void *main_continued(UNUSED void *arg)
 
     /* Initialise the network hardware */
     printf("Network init\n");
-    network_init();
+    network_init(&cspace);
 
     /* Start the user application */
     printf("Start first process\n");
