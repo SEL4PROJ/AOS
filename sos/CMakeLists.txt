@@ -25,12 +25,12 @@ config_string(SosNetMask SOS_NETMASK
 
 config_string(SosIP SOS_IP
     "IP address"
-    DEFAULT "192.168.168.2"
+    DEFAULT "192.168.0.2"
 )
 
 config_string(SosGateway SOS_GATEWAY
     "Gateway IP address"
-    DEFAULT "192.168.168.1"
+    DEFAULT "192.168.0.10"
 )
 
 add_config_library(sos "${configure_string}")
