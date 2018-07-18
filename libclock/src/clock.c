@@ -32,11 +32,6 @@ int timer_interrupt(void)
     return CLOCK_R_FAIL;
 }
 
-timestamp_t time_stamp(void)
-{
-    return 0;
-}
-
 int stop_timer(void)
 {
     return CLOCK_R_FAIL;

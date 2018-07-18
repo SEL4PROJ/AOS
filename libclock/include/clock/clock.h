@@ -62,13 +62,6 @@ int remove_timer(uint32_t id);
 int timer_interrupt(void);
 
 /*
- * Returns present time in microseconds since booting.
- *
- * Returns 0 on failure.
- */
-timestamp_t time_stamp(void);
-
-/*
  * Stop clock driver operation.
  *
  * Returns CLOCK_R_OK iff successful.
