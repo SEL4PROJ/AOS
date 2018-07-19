@@ -12,9 +12,6 @@
 /* This file bootstraps the system, setting up a cspace and the ut allocator which can
    then be used by the initial task to create more objects */
 
-/* set the logging level for this file */
-#define ZF_LOG_LEVEL ZF_LOG_DEBUG
-
 #include <stdlib.h>
 #include <stdio.h>
 
