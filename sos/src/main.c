@@ -86,17 +86,29 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
 
     /* allocate a slot for the reply cap */
     seL4_CPtr reply = cspace_alloc_slot(&cspace);
+    /* get the first word of the message, which in the SOS protocol is the number
+     * of the SOS "syscall". */
     seL4_Word syscall_number = seL4_GetMR(0);
-    /* Save the caller */
+    /* Save the reply capability of the caller. If we didn't do this,
+     * we coud just use seL4_Reply to respond directly to the reply capability.
+     * However if SOS were to block (seL4_Recv) to receive another message, then
+     * the existing reply capability would be deleted. So we save the reply capability
+     * here, as in future you will want to reply to it later. Note that after
+     * saving the reply capability, seL4_Reply cannot be used, as the reply capability
+     * is moved from the internal slot in the TCB to our cspace, and the internal
+     * slot is now empty. */
     seL4_Error err = cspace_save_reply_cap(&cspace, reply);
     ZF_LOGF_IFERR(err, "Failed to save reply");
 
     /* Process system call */
     switch (syscall_number) {
     case SOS_SYSCALL0:
-        ZF_LOGV("syscall: thread made syscall 0!\n");
+        ZF_LOGV("syscall: thread example made syscall 0!\n");
+        /* construct a reply message of length 1 */
         seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
+        /* Set the first (and only) word in the message to 0 */
         seL4_SetMR(0, 0);
+        /* Send the reply to the saved reply capability. */
         seL4_Send(reply, reply_msg);
         /* after this point, the reply slot is empty as the reply has been sent */
         break;
@@ -112,24 +124,30 @@ NORETURN void syscall_loop(seL4_CPtr ep, UNUSED seL4_CPtr ntfn)
 
     while (1) {
         seL4_Word badge;
+        /* Block on ep, waiting for an IPC sent over ep, or
+         * a notification from our bound notification object */
         seL4_MessageInfo_t message = seL4_Recv(ep, &badge);
+        /* Awake! We got a message - check the label and badge to
+         * see what the message is about */
         seL4_Word label = seL4_MessageInfo_get_label(message);
 
         if (badge & IRQ_EP_BADGE) {
-            /* Interrupt */
+            /* It's a notification from our bound notification
+             * object! */
             if (badge & IRQ_BADGE_NETWORK) {
                 network_tick();
             }
         } else if (label == seL4_Fault_NullFault) {
-            /* System call */
+            /* It's not a fault or an interrupt, it must be an IPC
+             * message from tty_test! */
             handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1);
-        } else if (label) {
+        } else {
             /* some kind of fault */
             debug_print_fault(message, TTY_NAME);
             /* dump registers too */
             debug_dump_registers(tty_test_process.tcb);
 
-            ZF_LOGF("Unable to handle faults");
+            ZF_LOGF("The SOS skeleton does not know how to handle faults!");
         }
     }
 }
@@ -171,7 +189,7 @@ static int stack_write(seL4_Word *mapped_stack, int index, uintptr_t val)
 }
 
 /* set up System V ABI compliant stack, so that the process can
- * start up and initialise the c library */
+ * start up and initialise the C library */
 static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, char *elf_file)
 {
     /* Create a stack frame */
@@ -181,10 +199,10 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, ch
         return 0;
     }
 
-    /* virtual addresses in the target process */
+    /* virtual addresses in the target process' address space */
     uintptr_t stack_top = PROCESS_STACK_TOP;
     uintptr_t stack_bottom = PROCESS_STACK_TOP - PAGE_SIZE_4K;
-    /* virtual addresses in the local process */
+    /* virtual addresses in the SOS's address space */
     void *local_stack_top  = (seL4_Word *) SOS_SCRATCH;
     uintptr_t local_stack_bottom = SOS_SCRATCH - PAGE_SIZE_4K;
 
@@ -312,7 +330,9 @@ bool start_first_process(char* app_name, seL4_CPtr ep)
         return false;
     }
 
-    /* allocate a new slot in the target cspace which we will mint a badged endpoint cap into */
+    /* allocate a new slot in the target cspace which we will mint a badged endpoint cap into --
+     * the badge is used to identify the process, which will come in handy when you have multiple
+     * processes. */
     seL4_CPtr user_ep = cspace_alloc_slot(&tty_test_process.cspace);
     if (user_ep == seL4_CapNull) {
         ZF_LOGE("Failed to alloc user ep slot");
@@ -365,7 +385,7 @@ bool start_first_process(char* app_name, seL4_CPtr ep)
     /* set up the stack */
     seL4_Word sp = init_process_stack(&cspace, seL4_CapInitThreadVSpace, elf_base);
 
-    /* load the elf image */
+    /* load the elf image from the cpio file */
     err = elf_load(&cspace, seL4_CapInitThreadVSpace, tty_test_process.vspace, elf_base);
     if (err) {
         ZF_LOGE("Failed to load elf image");
