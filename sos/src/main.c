@@ -465,6 +465,7 @@ void init_muslc(void)
     muslcsys_install_syscall(__NR_setsockopt, sys_setsockopt);
     muslcsys_install_syscall(__NR_getsockopt, sys_getsockopt);
     muslcsys_install_syscall(__NR_ppoll, sys_ppoll);
+    muslcsys_install_syscall(__NR_madvise, sys_madvise);
 }
 
 NORETURN void *main_continued(UNUSED void *arg)

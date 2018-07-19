@@ -76,3 +76,7 @@ long sys_mmap(va_list ap)
     ZF_LOGF("not implemented");
     return -ENOMEM;
 }
+
+long sys_madvise(UNUSED va_list ap) {
+    return 0;
+}

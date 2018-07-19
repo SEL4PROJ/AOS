@@ -50,3 +50,4 @@ long sys_fcntl(va_list ap);
 long sys_setsockopt(va_list ap);
 long sys_getsockopt(va_list ap);
 long sys_ppoll(va_list ap);
+long sys_madvise(UNUSED va_list ap);
