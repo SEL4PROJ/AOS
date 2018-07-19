@@ -34,9 +34,15 @@
 static void
 thread_block(void)
 {
+    /* construct some info about the IPC message tty_test will send
+     * to sos -- it's 1 word long */
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 1);
+    /* Set the first word in the message to 0 */
     seL4_SetMR(0, 1);
+    /* Now send the ipc -- call will send the ipc, then block until a reply
+     * message is received */
     seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+    /* Currently SOS does not reply -- so we never come back here */
 }
 
 int main(void)
