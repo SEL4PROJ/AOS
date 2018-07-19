@@ -55,6 +55,8 @@ typedef struct {
      * is a free list in the untypeds region. The rest are sublists, with bookkeeping data allocated
      * from an untyped */
     ut_t *free_untypeds[N_UNTYPED_LISTS];
+    /* the number of non-device 4k untypeds this table is managing */
+    size_t n_4k_untyped;
     /* list of unused nodes which can be used to populate untyped lists
      * of untyped objects < 4K in size, where the bookkeping data is allocated on demand from the 4k
      * untypeds free list */
@@ -76,6 +78,15 @@ size_t ut_pages_for_region(ut_region_t region);
  *
  * */
 void ut_init(void *memory, ut_region_t region);
+
+/**
+ * Return the amount of non-device memory the ut_table is managing, in bytes.
+ *
+ * Note: this value *does not change* for the life of the ut allocator.
+ * The intended use of this function is to allow you to determine the amount
+ * of SOS virtual memory you will need in order to be able to map all of memory.
+ */
+size_t ut_size(void);
 
 /* Add a contiguous (in memory and capabilities) set of 4k untypeds to the table. The paddr
  * must be in the range provided to ut_init with the region parameter.

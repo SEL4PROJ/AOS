@@ -58,6 +58,11 @@ void ut_init(void *memory, ut_region_t region)
     table.first_paddr = region.start;
 }
 
+size_t ut_size(void)
+{
+    return table.n_4k_untyped * PAGE_SIZE_4K;
+}
+
 void ut_add_untyped_range(seL4_Word paddr, seL4_CPtr cap, size_t n, bool device)
 {
     ut_t **list = &table.free_untypeds[SIZE_BITS_TO_INDEX(seL4_PageBits)];
@@ -68,6 +73,7 @@ void ut_add_untyped_range(seL4_Word paddr, seL4_CPtr cap, size_t n, bool device)
         cap++;
         if (!device) {
             push(list, node);
+            table.n_4k_untyped++;
         }
     }
 }
