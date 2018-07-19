@@ -14,7 +14,7 @@ rsync -rv --exclude ".git" --exclude ".gitignore" --links $1/libnfs $2/
 rsync -rv --exclude ".git" --exclude "aos-make-project.sh" --copy-links $1/projects $2/
 rsync -rv --exclude ".git" --links $1/tools $2/
 cd $2
-ln -s projects/aos/reset.sh
-ln -s projects/aos/init-build.sh
-ln -s tools/seL4/cmake-tool/default-CMakeLists.txt CMakeLists.txt
+ln -sf projects/aos/reset.sh
+ln -sf projects/aos/init-build.sh
+ln -sf tools/seL4/cmake-tool/default-CMakeLists.txt CMakeLists.txt
 cd ..
