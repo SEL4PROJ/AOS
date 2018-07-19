@@ -414,11 +414,6 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     ZF_LOGF_IF(err, "Failed to initialise DMA");
     bootstrap_data.next_free_vaddr = dma_vaddr + BIT(seL4_LargePageBits) + PAGE_SIZE_4K;
 
-    printf("First free slot %lu\n", first_free_slot);
-    printf("N slots used %lu\n", ALIGN_DOWN(first_free_slot, slots_per_cnode));
-    printf("n cnodes %lu\n", first_free_slot / slots_per_cnode);
-
-
     /* now record all the cptrs we have already used to bootstrap */
     for (seL4_CPtr i = 0; i < ALIGN_DOWN(first_free_slot, slots_per_cnode); i += slots_per_cnode) {
         /* we just allocated all these, should be not be NULL */
