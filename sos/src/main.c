@@ -121,11 +121,11 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args)
     }
 }
 
-NORETURN void syscall_loop(seL4_CPtr ep, UNUSED seL4_CPtr ntfn)
+NORETURN void syscall_loop(seL4_CPtr ep)
 {
 
     while (1) {
-        seL4_Word badge;
+        seL4_Word badge = 0;
         /* Block on ep, waiting for an IPC sent over ep, or
          * a notification from our bound notification object */
         seL4_MessageInfo_t message = seL4_Recv(ep, &badge);
@@ -501,7 +501,7 @@ NORETURN void *main_continued(UNUSED void *arg)
 
     /* Initialise the network hardware */
     printf("Network init\n");
-    network_init(&cspace);
+    network_init(&cspace, badge_irq_ep(ntfn, IRQ_BADGE_NETWORK));
 
     /* Start the user application */
     printf("Start first process\n");
@@ -509,7 +509,7 @@ NORETURN void *main_continued(UNUSED void *arg)
     ZF_LOGF_IF(!success, "Failed to start first process");
 
     printf("\nSOS entering syscall loop\n");
-    syscall_loop(ipc_ep, ntfn);
+    syscall_loop(ipc_ep);
 }
 /*
  * Main entry point - called by crt.

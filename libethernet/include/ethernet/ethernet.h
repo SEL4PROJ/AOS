@@ -96,3 +96,5 @@ ethif_err_t ethif_send(uint8_t *buf, uint32_t len);
  * @return ethif_err_t
  */
 ethif_err_t ethif_recv(int *len);
+
+void ethif_irq(void);

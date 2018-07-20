@@ -54,6 +54,12 @@ ethif_dma_ops_t *uboot_get_dma_ops()
     return &dma_ops;
 }
 
+int designware_ack(struct eth_device *dev);
+void ethif_irq(void)
+{
+    designware_ack(&uboot_eth_dev);
+}
+
 ethif_err_t ethif_init(uint64_t base_addr, const uint8_t mac[6], ethif_dma_ops_t *ops,
                        ethif_recv_callback_t recv_callback)
 {

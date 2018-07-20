@@ -18,8 +18,9 @@
  * Initialises the network stack
  *
  * @param cspace         for creating slots for mappings
+ * @param ntfn           notification object bound to SOS's endpoint
  */
-void network_init(cspace_t *cspace);
+void network_init(cspace_t *cspace, seL4_CPtr ntfn);
 
 /**
  * Tell the network driver to handle any pending events

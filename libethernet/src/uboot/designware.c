@@ -20,6 +20,21 @@
 #include "../io.h"
 #include "designware.h"
 
+#define DMA_INTR_ENA_TIE 0x00000001 /* Transmit interrupt */
+#define DMA_INTR_ENA_NIE 0x00010000 /* Normal summary */
+#define DMA_INTR_ENA_RIE 0x00000040 /* Receive Interrupt */
+
+#define DMA_INTR_NORMAL (DMA_INTR_ENA_NIE | DMA_INTR_ENA_RIE | \
+                    DMA_INTR_ENA_TIE)
+
+#define DMA_INTR_ENA_AIE 0x00008000 /* Abnormal Summary */
+#define DMA_INTR_ENA_FBE 0x00002000 /* Fatal Bus Error */
+#define DMA_INTR_ENA_UNE 0x00000020 /* Tx Underflow */
+
+#define DMA_INTR_ABNORMAL   (DMA_INTR_ENA_AIE | DMA_INTR_ENA_FBE | \
+                        DMA_INTR_ENA_UNE)
+#define DMA_INTR_DEFAULT_MASK   (DMA_INTR_NORMAL | DMA_INTR_ABNORMAL)
+
 static int dw_mdio_read(struct mii_dev *bus, int addr, int devad, int reg)
 {
 #ifdef CONFIG_DM_ETH
@@ -317,7 +332,11 @@ int designware_eth_init(struct dw_eth_dev *priv, u8 *enetaddr)
 	writel((CONFIG_DW_AXI_BURST_LEN & 0x1FF >> 1), &dma_p->axibus);
 #endif
 
-	/* Start up the PHY */
+
+    /* enable transmit and recv interrupts */
+    writel(readl(&dma_p->intenable) | DMA_INTR_DEFAULT_MASK, &dma_p->intenable);
+
+    /* Start up the PHY */
 	ret = phy_startup(priv->phydev);
 	if (ret) {
 		printf("Could not initialize PHY %s\n",
@@ -537,6 +556,12 @@ static void dw_eth_halt(struct eth_device *dev)
 static int dw_write_hwaddr(struct eth_device *dev)
 {
 	return _dw_write_hwaddr(dev->priv, dev->enetaddr);
+}
+
+int designware_ack(struct eth_device *dev)
+{
+    struct dw_eth_dev *priv = dev->priv;
+    writel(DMA_INTR_DEFAULT_MASK, &priv->dma_regs_p->status);
 }
 
 int designware_initialize(ulong base_addr, u32 interface, struct eth_device *dev)
