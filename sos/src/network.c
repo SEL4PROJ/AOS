@@ -110,7 +110,7 @@ ethif_dma_addr_t ethif_dma_malloc(uint32_t size, uint32_t align)
     return eaddr;
 }
 
-void nfslib_tick()
+void nfslib_poll()
 {
     struct pollfd pfd = {
         .fd = nfs_get_fd(nfs),
@@ -135,9 +135,14 @@ void nfslib_tick()
 
 void network_tick(void) {
     pico_bsd_stack_tick();
-    nfslib_tick();
+    nfslib_poll();
+}
+
+void network_irq(void) {
     ethif_irq();
     seL4_IRQHandler_Ack(irq_handler);
+
+    network_tick();
 }
 
 void network_init(cspace_t *cspace, seL4_CPtr ntfn)

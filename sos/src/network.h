@@ -23,6 +23,13 @@
 void network_init(cspace_t *cspace, seL4_CPtr ntfn);
 
 /**
- * Tell the network driver to handle any pending events
+ * Tell the network driver to handle any pending events.
+ * This should be called every 100ms or so even when no network IRQs
+ * are present - to keep libnfs chugging along.
  */
 void network_tick(void);
+
+/**
+ * Tell the network driver to handle a network IRQ
+ */
+void network_irq(void);
