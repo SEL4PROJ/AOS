@@ -35,6 +35,20 @@
                         DMA_INTR_ENA_UNE)
 #define DMA_INTR_DEFAULT_MASK   (DMA_INTR_NORMAL | DMA_INTR_ABNORMAL)
 
+
+#define        GMAC_INT_MASK           0x0000003c
+#define        GMAC_INT_DISABLE_RGMII          BIT(0)
+#define        GMAC_INT_DISABLE_PCSLINK        BIT(1)
+#define        GMAC_INT_DISABLE_PCSAN          BIT(2)
+#define        GMAC_INT_DISABLE_PMT            BIT(3)
+#define        GMAC_INT_DISABLE_TIMESTAMP      BIT(9)
+#define        GMAC_INT_DISABLE_PCS    (GMAC_INT_DISABLE_RGMII | \
+                                GMAC_INT_DISABLE_PCSLINK | \
+                                GMAC_INT_DISABLE_PCSAN)
+#define        GMAC_INT_DEFAULT_MASK   (GMAC_INT_DISABLE_TIMESTAMP | \
+                                GMAC_INT_DISABLE_PCS)
+
+
 static int dw_mdio_read(struct mii_dev *bus, int addr, int devad, int reg)
 {
 #ifdef CONFIG_DM_ETH
@@ -335,6 +349,9 @@ int designware_eth_init(struct dw_eth_dev *priv, u8 *enetaddr)
 
     /* enable transmit and recv interrupts */
     writel(readl(&dma_p->intenable) | DMA_INTR_DEFAULT_MASK, &dma_p->intenable);
+
+    /* mask unneeded GMAC interrupts */
+    writel(GMAC_INT_DEFAULT_MASK, &mac_p->intmask);
 
     /* Start up the PHY */
 	ret = phy_startup(priv->phydev);

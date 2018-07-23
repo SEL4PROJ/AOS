@@ -148,7 +148,7 @@ void network_init(cspace_t *cspace, seL4_CPtr ntfn)
     irq_handler = cspace_alloc_slot(cspace);
     ZF_LOGF_IF(irq_handler == seL4_CapNull, "Failed to alloc slot for irq handler!");
     seL4_Error error = cspace_irq_control_get(cspace, irq_handler, seL4_CapIRQControl,
-            NETWORK_IRQ, 0);
+            NETWORK_IRQ, 1);
     ZF_LOGF_IF(error, "Failed to get network irq handler");
     error = seL4_IRQHandler_SetNotification(irq_handler, ntfn);
     ZF_LOGF_IF(error, "Failed to set irq handler ntfn");
