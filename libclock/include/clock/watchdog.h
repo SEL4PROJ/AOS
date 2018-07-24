@@ -12,6 +12,7 @@
 #pragma once
 
 #include <utils/io.h>
+#include <utils/util.h>
 
 /* This file provides the hardware details about the watchdog timer on the odroid-c2. This device
  * is used by the network & reset infrastructure of this project. It has a different programming model
@@ -61,7 +62,7 @@ static inline void watchdog_init(void *timer_vaddr, uint16_t timeout_us)
 
 static inline void watchdog_reset(void)
 {
-    assert(wdog);
+    ZF_LOGF_IF(wdog == NULL, "WDOG uninitialised!");
 
     RAW_WRITE32(0, wdog + WDOG_RESET);
     COMPILER_MEMORY_FENCE();
