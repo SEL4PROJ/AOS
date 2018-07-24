@@ -156,29 +156,28 @@ void network_tick(void)
     seL4_IRQHandler_Ack(irq_handler_tick);
 }
 
+static seL4_CPtr init_irq(cspace_t *cspace, int irq_number, int edge_triggered,
+                          seL4_CPtr ntfn) {
+    seL4_CPtr irq_handler = cspace_alloc_slot(cspace);
+    ZF_LOGF_IF(irq_handler == seL4_CapNull, "Failed to alloc slot for irq handler!");
+    seL4_Error error = cspace_irq_control_get(cspace, irq_handler, seL4_CapIRQControl, irq_number, edge_triggered);
+    ZF_LOGF_IF(error, "Failed to get irq handler for irq %d", irq_number);
+    error = seL4_IRQHandler_SetNotification(irq_handler, ntfn);
+    ZF_LOGF_IF(error, "Failed to set irq handler ntfn");
+    seL4_IRQHandler_Ack(irq_handler);
+    return irq_handler;
+}
+
 void network_init(cspace_t *cspace, seL4_CPtr ntfn_irq, seL4_CPtr ntfn_tick, void *timer_vaddr)
 {
+    int error;
     ZF_LOGI("\nInitialising network...\n\n");
 
     /* set up the network device irq */
-    irq_handler_network = cspace_alloc_slot(cspace);
-    ZF_LOGF_IF(irq_handler_network == seL4_CapNull, "Failed to alloc slot for irq handler!");
-    seL4_Error error = cspace_irq_control_get(cspace, irq_handler_network, seL4_CapIRQControl,
-            NETWORK_IRQ, 1);
-    ZF_LOGF_IF(error, "Failed to get network irq handler");
-    error = seL4_IRQHandler_SetNotification(irq_handler_network, ntfn_irq);
-    ZF_LOGF_IF(error, "Failed to set irq handler ntfn_irq");
-    seL4_IRQHandler_Ack(irq_handler_network);
+    irq_handler_network = init_irq(cspace, NETWORK_IRQ, 1, ntfn_irq);
 
     /* set up the network tick irq (watchdog timer) */
-    irq_handler_tick = cspace_alloc_slot(cspace);
-    ZF_LOGF_IF(irq_handler_tick == seL4_CapNull, "Failed to alloc slot for irq handler!");
-    error = cspace_irq_control_get(cspace, irq_handler_tick, seL4_CapIRQControl,
-            WATCHDOG_IRQ, 1);
-    ZF_LOGF_IF(error, "Failed to get network irq handler");
-    error = seL4_IRQHandler_SetNotification(irq_handler_tick, ntfn_tick);
-    ZF_LOGF_IF(error, "Failed to set irq handler ntfn_tick");
-    seL4_IRQHandler_Ack(irq_handler_tick);
+    irq_handler_tick = init_irq(cspace, WATCHDOG_IRQ, 1, ntfn_tick);
 
     /* Configure a watchdog IRQ for 10 milliseconds from now. Whenever the watchdog is reset
      * using watchdog_reset(), we will get another IRQ 10ms later */
