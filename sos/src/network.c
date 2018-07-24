@@ -213,7 +213,7 @@ void network_init(cspace_t *cspace, seL4_CPtr ntfn_irq, seL4_CPtr ntfn_tick, voi
     memset(&pico_dev, 0, sizeof(struct pico_device));
 
     pico_dev.send = pico_eth_send;
-    pico_dev.poll = pico_eth_poll; // TODO NULL if async
+    pico_dev.poll = pico_eth_poll;
 
     pico_dev.mtu = MAXIMUM_TRANSFER_UNIT;
 
