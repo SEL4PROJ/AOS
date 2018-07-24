@@ -56,6 +56,7 @@
 #endif
 
 #define NETWORK_IRQ (40)
+#define WATCHDOG_TIMEOUT 10000
 
 /* TODO: Read this out on boot instead of hard-coding it... */
 const uint8_t OUR_MAC[6] = {0x00,0x1e,0x06,0x36,0x05,0xe5};
@@ -181,7 +182,7 @@ void network_init(cspace_t *cspace, seL4_CPtr ntfn_irq, seL4_CPtr ntfn_tick, voi
 
     /* Configure a watchdog IRQ for 10 milliseconds from now. Whenever the watchdog is reset
      * using watchdog_reset(), we will get another IRQ 10ms later */
-    watchdog_init(timer_vaddr, 10000);
+    watchdog_init(timer_vaddr, WATCHDOG_TIMEOUT);
 
     /* Initialise ethernet interface first, because we won't bother initialising
      * picotcp if the interface fails to be brought up */
