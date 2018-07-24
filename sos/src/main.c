@@ -438,14 +438,14 @@ static void sos_ipc_init(seL4_CPtr* ipc_ep, seL4_CPtr* ntfn)
     ZF_LOGF_IF(!ut, "No memory for endpoint");
 }
 
-static inline seL4_CPtr badge_irq_ep(seL4_CPtr ep, seL4_Word badge)
+static inline seL4_CPtr badge_irq_ntfn(seL4_CPtr ntfn, seL4_Word badge)
 {
     /* allocate a slot */
     seL4_CPtr badged_cap = cspace_alloc_slot(&cspace);
     ZF_LOGF_IF(badged_cap == seL4_CapNull, "Failed to allocate slot");
 
     /* mint the cap, which sets the badge */
-    seL4_Error err = cspace_mint(&cspace, badged_cap, &cspace, ep, seL4_AllRights, badge | IRQ_EP_BADGE);
+    seL4_Error err = cspace_mint(&cspace, badged_cap, &cspace, ntfn, seL4_AllRights, badge | IRQ_EP_BADGE);
     ZF_LOGE_IFERR(err, "Failed to mint cap");
 
     /* return the badged cptr */
@@ -513,8 +513,8 @@ NORETURN void *main_continued(UNUSED void *arg)
     /* Initialise the network hardware. */
     printf("Network init\n");
     network_init(&cspace,
-                 badge_irq_ep(ntfn, IRQ_BADGE_NETWORK_IRQ),
-                 badge_irq_ep(ntfn, IRQ_BADGE_NETWORK_TICK),
+                 badge_irq_ntfn(ntfn, IRQ_BADGE_NETWORK_IRQ),
+                 badge_irq_ntfn(ntfn, IRQ_BADGE_NETWORK_TICK),
                  timer_vaddr);
 
     /* Start the user application */
