@@ -18,18 +18,21 @@
  * Initialises the network stack
  *
  * @param cspace         for creating slots for mappings
- * @param ntfn           notification object bound to SOS's endpoint
+ * @param ntfn_irq       badged notification object bound to SOS's endpoint, for ethernet IRQs
+ * @param ntfn_tick      badged notification object bound to SOS's endpoint, for network tick IRQs
+ * @param timer_vaddr    mapped timer device. network_init will set up a periodic network_tick
+ *                       using the SoC's watchdog timer (which is not used by your timer driver
+ *                       and has a completely different programming model!)
  */
-void network_init(cspace_t *cspace, seL4_CPtr ntfn);
+void network_init(cspace_t *cspace, seL4_CPtr ntfn_irq, seL4_CPtr ntfn_tick, void *timer_vaddr);
 
 /**
- * Tell the network driver to handle any pending events.
- * This should be called every 100ms or so even when no network IRQs
- * are present - to keep libnfs chugging along.
+ * Tell the network driver to handle a watchdog tick IRQ. This is required as the TCP/IP stack and libnfs
+ * need to check internal timeouts even if there are no network interrupts.
  */
 void network_tick(void);
 
 /**
- * Tell the network driver to handle a network IRQ
+ * Tell the network driver to handle an ethernet device IRQ
  */
 void network_irq(void);

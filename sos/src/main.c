@@ -44,7 +44,8 @@
 #define IRQ_EP_BADGE         BIT(seL4_BadgeBits - 1)
 /* All badged IRQs set high bet, then we use uniq bits to
  * distinguish interrupt sources */
-#define IRQ_BADGE_NETWORK BIT(0)
+#define IRQ_BADGE_NETWORK_IRQ  BIT(0)
+#define IRQ_BADGE_NETWORK_TICK BIT(1)
 
 #define TTY_NAME             "tty_test"
 #define TTY_PRIORITY         (0)
@@ -136,8 +137,13 @@ NORETURN void syscall_loop(seL4_CPtr ep)
         if (badge & IRQ_EP_BADGE) {
             /* It's a notification from our bound notification
              * object! */
-            if (badge & IRQ_BADGE_NETWORK) {
+            if (badge & IRQ_BADGE_NETWORK_IRQ) {
+                /* It's an interrupt from the ethernet MAC */
                 network_irq();
+            }
+            if (badge & IRQ_BADGE_NETWORK_TICK) {
+                /* It's an interrupt from the watchdog keeping our TCP/IP stack alive */
+                network_tick();
             }
         } else if (label == seL4_Fault_NullFault) {
             /* It's not a fault or an interrupt, it must be an IPC
@@ -499,9 +505,17 @@ NORETURN void *main_continued(UNUSED void *arg)
     /* run sos initialisation tests */
     run_tests(&cspace);
 
-    /* Initialise the network hardware */
+    /* Map the timer device (NOTE: this is the same mapping you will use for your timer driver -
+     * sos uses the watchdog timers on this page to implement reset infrastructure & network ticks,
+     * so touching the watchdog timers here is not recommended!) */
+    void *timer_vaddr = sos_map_device(&cspace, PAGE_ALIGN_4K(TIMER_PADDR), PAGE_SIZE_4K);
+
+    /* Initialise the network hardware. */
     printf("Network init\n");
-    network_init(&cspace, badge_irq_ep(ntfn, IRQ_BADGE_NETWORK));
+    network_init(&cspace,
+                 badge_irq_ep(ntfn, IRQ_BADGE_NETWORK_IRQ),
+                 badge_irq_ep(ntfn, IRQ_BADGE_NETWORK_TICK),
+                 timer_vaddr);
 
     /* Start the user application */
     printf("Start first process\n");

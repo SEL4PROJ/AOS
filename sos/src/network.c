@@ -20,6 +20,7 @@
 
 #include <cspace/cspace.h>
 #include <clock/timestamp.h>
+#include <clock/watchdog.h>
 
 #undef PACKED // picotcp complains as it redefines this macro
 #include <pico_stack.h>
@@ -61,7 +62,7 @@ const uint8_t OUR_MAC[6] = {0x00,0x1e,0x06,0x36,0x05,0xe5};
 
 static struct pico_device pico_dev;
 static struct nfs_context *nfs = NULL;
-static seL4_CPtr irq_handler;
+static seL4_CPtr irq_handler_network, irq_handler_tick;
 static void nfs_mount_cb(int status, struct nfs_context *nfs, void *data, void *private_data);
 
 static int pico_eth_send(UNUSED struct pico_device *dev, void *input_buf, int len)
@@ -133,31 +134,55 @@ void nfslib_poll()
     }
 }
 
-void network_tick(void) {
+static void network_tick_internal(void)
+{
     pico_bsd_stack_tick();
     nfslib_poll();
 }
 
-void network_irq(void) {
+/* Handler for IRQs from the ethernet MAC */
+void network_irq(void)
+{
     ethif_irq();
-    seL4_IRQHandler_Ack(irq_handler);
-
-    network_tick();
+    seL4_IRQHandler_Ack(irq_handler_network);
+    network_tick_internal();
 }
 
-void network_init(cspace_t *cspace, seL4_CPtr ntfn)
+/* Handler for IRQs from the watchdog timer */
+void network_tick(void)
+{
+    network_tick_internal();
+    watchdog_reset();
+    seL4_IRQHandler_Ack(irq_handler_tick);
+}
+
+void network_init(cspace_t *cspace, seL4_CPtr ntfn_irq, seL4_CPtr ntfn_tick, void *timer_vaddr)
 {
     ZF_LOGI("\nInitialising network...\n\n");
 
-    /* set up the network irq */
-    irq_handler = cspace_alloc_slot(cspace);
-    ZF_LOGF_IF(irq_handler == seL4_CapNull, "Failed to alloc slot for irq handler!");
-    seL4_Error error = cspace_irq_control_get(cspace, irq_handler, seL4_CapIRQControl,
+    /* set up the network device irq */
+    irq_handler_network = cspace_alloc_slot(cspace);
+    ZF_LOGF_IF(irq_handler_network == seL4_CapNull, "Failed to alloc slot for irq handler!");
+    seL4_Error error = cspace_irq_control_get(cspace, irq_handler_network, seL4_CapIRQControl,
             NETWORK_IRQ, 1);
     ZF_LOGF_IF(error, "Failed to get network irq handler");
-    error = seL4_IRQHandler_SetNotification(irq_handler, ntfn);
-    ZF_LOGF_IF(error, "Failed to set irq handler ntfn");
-    seL4_IRQHandler_Ack(irq_handler);
+    error = seL4_IRQHandler_SetNotification(irq_handler_network, ntfn_irq);
+    ZF_LOGF_IF(error, "Failed to set irq handler ntfn_irq");
+    seL4_IRQHandler_Ack(irq_handler_network);
+
+    /* set up the network tick irq (watchdog timer) */
+    irq_handler_tick = cspace_alloc_slot(cspace);
+    ZF_LOGF_IF(irq_handler_tick == seL4_CapNull, "Failed to alloc slot for irq handler!");
+    error = cspace_irq_control_get(cspace, irq_handler_tick, seL4_CapIRQControl,
+            WATCHDOG_IRQ, 1);
+    ZF_LOGF_IF(error, "Failed to get network irq handler");
+    error = seL4_IRQHandler_SetNotification(irq_handler_tick, ntfn_tick);
+    ZF_LOGF_IF(error, "Failed to set irq handler ntfn_tick");
+    seL4_IRQHandler_Ack(irq_handler_tick);
+
+    /* Configure a watchdog IRQ for 10 milliseconds from now. Whenever the watchdog is reset
+     * using watchdog_reset(), we will get another IRQ 10ms later */
+    watchdog_init(timer_vaddr, 10000);
 
     /* Initialise ethernet interface first, because we won't bother initialising
      * picotcp if the interface fails to be brought up */
