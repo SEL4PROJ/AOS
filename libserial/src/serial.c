@@ -84,6 +84,9 @@ int serial_send(struct serial *serial, char *data, int len)
             ZF_LOGE("Pico send failed");
             return -1;
         }
+        if (sent == 0) {
+            return total_sent;
+        }
         total_sent += sent;
     }
     return len;
