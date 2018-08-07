@@ -55,7 +55,7 @@ struct serial *serial_init(void)
         return NULL;
     }
 
-    serial.pico_socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &serial_recv_handler);
+    serial.pico_socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &serial_recv_handler);
     if (!serial.pico_socket) {
         ZF_LOGE("serial connection failed");
         return NULL;
@@ -70,6 +70,12 @@ struct serial *serial_init(void)
     /* Configure peer/port for sendto */
     pico_string_to_ipv4(CONFIG_SOS_GATEWAY, &serial.peer);
     serial.port = port_be;
+
+    err = pico_socket_connect(serial.pico_socket, &serial.peer, serial.port);
+    if (err < 0) {
+        ZF_LOGE("serial failed to connect to TCP server");
+        return NULL;
+    }
 
     return &serial;
 }
