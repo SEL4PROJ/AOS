@@ -101,7 +101,9 @@ static bool ensure_levels(cspace_t *cspace, seL4_CPtr cptr, int n_slots, seL4_Wo
     }
 
     seL4_Word node = NODE_INDEX(cptr);
-    if (node >= (DIV_ROUND_UP(cspace->top_lvl_size_bits, BOT_LVL_PER_NODE))) {
+    size_t cspace_size = BIT(CNODE_SLOT_BITS(cspace->top_lvl_size_bits) +
+                             CNODE_SLOT_BITS(CNODE_SIZE_BITS));
+    if (node >= (DIV_ROUND_UP(cspace_size, BOT_LVL_PER_NODE))) {
         ZF_LOGE("Cspace is full!");
         return false;
     }

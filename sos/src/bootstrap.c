@@ -28,6 +28,8 @@
 
 /* top level cspace node size, for the root cnode, in bits, where size = 2^bits */
 #define INITIAL_TASK_CNODE_SIZE_BITS 18u
+#define INITIAL_TASK_CSPACE_SLOTS BIT(CNODE_SLOT_BITS(INITIAL_TASK_CNODE_SIZE_BITS) + \
+                                      CNODE_SLOT_BITS(CNODE_SIZE_BITS))
 
 /* extra cspace info for the initial bootstrapped cspace */
 typedef struct {
@@ -40,7 +42,7 @@ typedef struct {
 
 /* statically allocated data for initial cspace */
 static bootstrap_cspace_t bootstrap_data;
-static bot_lvl_node_t *bot_lvl_nodes[(CNODE_SLOTS(INITIAL_TASK_CNODE_SIZE_BITS) / BOT_LVL_PER_NODE) + 1];
+static bot_lvl_node_t *bot_lvl_nodes[INITIAL_TASK_CSPACE_SLOTS / BOT_LVL_PER_NODE + 1];
 static unsigned long top_bf[BITFIELD_SIZE(INITIAL_TASK_CNODE_SIZE_BITS)];
 /* track the amount of bootinfo untyped we have stolen for bootstrapping,
  * indexed is offest by bootinfo->untyped.start. For example, bootinfo->untyped.start + 1
