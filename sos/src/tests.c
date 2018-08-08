@@ -80,8 +80,10 @@ static void test_cspace(cspace_t *cspace)
 
    for (int i = 0; i < nslots; i++) {
        slots[i] = cspace_alloc_slot(cspace);
-       assert(i == 0 || slots[i-1] == slots[i] - 1);
-       assert(slots[i] != seL4_CapNull);
+       if (slots[i] == seL4_CapNull) {
+           nslots = i;
+           break;
+       }
    }
 
    ZF_LOGV("Allocated %lu <-> %lu slots\n", slots[0], slots[nslots - 1]);

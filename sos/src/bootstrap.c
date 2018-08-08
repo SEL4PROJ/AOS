@@ -40,7 +40,7 @@ typedef struct {
 
 /* statically allocated data for initial cspace */
 static bootstrap_cspace_t bootstrap_data;
-static bot_lvl_node_t *bot_lvl_nodes[(CNODE_SLOTS(INITIAL_TASK_CNODE_SIZE_BITS)) / BOT_LVL_PER_NODE];
+static bot_lvl_node_t *bot_lvl_nodes[(CNODE_SLOTS(INITIAL_TASK_CNODE_SIZE_BITS) / BOT_LVL_PER_NODE) + 1];
 static unsigned long top_bf[BITFIELD_SIZE(INITIAL_TASK_CNODE_SIZE_BITS)];
 /* track the amount of bootinfo untyped we have stolen for bootstrapping,
  * indexed is offest by bootinfo->untyped.start. For example, bootinfo->untyped.start + 1

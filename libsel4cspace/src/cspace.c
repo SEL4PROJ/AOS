@@ -101,6 +101,10 @@ static bool ensure_levels(cspace_t *cspace, seL4_CPtr cptr, int n_slots, seL4_Wo
     }
 
     seL4_Word node = NODE_INDEX(cptr);
+    if (node >= (DIV_ROUND_UP(cspace->top_lvl_size_bits, BOT_LVL_PER_NODE))) {
+        ZF_LOGE("Cspace is full!");
+        return false;
+    }
 
     if (cspace->n_bot_lvl_nodes <= node) {
         /* use one of our watermark slots for the frame cap */
@@ -324,8 +328,9 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
 {
     assert(cspace != NULL);
     seL4_Word top_index = bf_first_free(BITFIELD_SIZE(cspace->top_lvl_size_bits), cspace->top_bf);
-    if (top_index > CNODE_SLOTS(cspace->top_lvl_size_bits)) {
-        ZF_LOGE("Cspace is full!\n");
+    if ((cspace->two_level && top_index > CNODE_SLOTS(cspace->top_lvl_size_bits)) ||
+        top_index >= CNODE_SLOTS(cspace->top_lvl_size_bits)) {
+            ZF_LOGE("Cspace is full!\n");
         return seL4_CapNull;
     }
 
@@ -346,14 +351,11 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
         /* now allocate a bottom level index */
         bot_lvl_t *bot_lvl = &cspace->bot_lvl_nodes[NODE_INDEX(cptr)]->cnodes[CNODE_INDEX(cptr)];
         seL4_Word bot_index = bf_first_free(BITFIELD_SIZE(CNODE_SIZE_BITS), bot_lvl->bf);
-        if (bot_index == CNODE_SLOTS(CNODE_SIZE_BITS)) {
-            ZF_LOGE("Cspace is full!\n");
-            return seL4_CapNull;
-        }
-
         bf_set_bit(bot_lvl->bf, bot_index);
-        if (bot_index == CNODE_SLOTS(CNODE_SIZE_BITS) - 1) {
-            /* we just allocated the last slot -> mark the top level as full */
+        /* check if there are any free slots left in this cnode */
+        if (bf_first_free(BITFIELD_SIZE(CNODE_SIZE_BITS), bot_lvl->bf) >=
+            (CNODE_SLOTS(CNODE_SIZE_BITS) - 1)) {
+            /* nope - mark the top level as full */
             bf_set_bit(cspace->top_bf, top_index);
         }
 
@@ -370,6 +372,11 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
 
 void cspace_free_slot(cspace_t *cspace, seL4_CPtr cptr)
 {
+    if (cptr == seL4_CapNull) {
+        /* never free seL4_CapNull */
+        return;
+    }
+
     if (!cspace->two_level) {
         if (cptr > CNODE_SLOTS(cspace->top_lvl_size_bits)) {
             ZF_LOGE("Attempting to delete slot greater than cspace bounds");
