@@ -40,6 +40,7 @@ int calxedaxgmac_initialize(u32 id, ulong base_addr);
 int cs8900_initialize(u8 dev_num, int base_addr);
 int davinci_emac_initialize(void);
 int dc21x4x_initialize(bd_t *bis);
+int designware_read_hwaddr(struct eth_device *dev, u8 *mac_out);
 int designware_initialize(ulong base_addr, u32 interface, struct eth_device *dev);
 int dm9000_initialize(bd_t *bis);
 int dnet_eth_initialize(int id, void *regs, unsigned int phy_addr);

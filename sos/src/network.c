@@ -58,9 +58,6 @@
 #define NETWORK_IRQ (40)
 #define WATCHDOG_TIMEOUT 1000
 
-/* TODO: Read this out on boot instead of hard-coding it... */
-const uint8_t OUR_MAC[6] = {0x00,0x1e,0x06,0x36,0x05,0xe5};
-
 static struct pico_device pico_dev;
 static struct nfs_context *nfs = NULL;
 static seL4_CPtr irq_handler_network, irq_handler_tick;
@@ -198,8 +195,13 @@ void network_init(cspace_t *cspace, seL4_CPtr ntfn_irq, seL4_CPtr ntfn_tick, voi
     ethif_dma_ops.flush_dcache_range = &sos_dma_cache_clean_invalidate;
     ethif_dma_ops.invalidate_dcache_range = &sos_dma_cache_invalidate;
 
-    /* Try initializing the device... */
-    error = ethif_init(eth_base_vaddr, OUR_MAC, &ethif_dma_ops, &raw_recv_callback);
+    /* Try initializing the device.
+     *
+     * This function will also check what MAC address u-boot programmed into
+     * the interface, copy it into mac_addr, and reprogram it into the interface */
+
+    uint8_t mac_addr[6];
+    error = ethif_init(eth_base_vaddr, mac_addr, &ethif_dma_ops, &raw_recv_callback);
     ZF_LOGF_IF(error != 0, "Failed to initialise ethernet interface");
 
     /* Extract IP from .config */
@@ -218,7 +220,7 @@ void network_init(cspace_t *cspace, seL4_CPtr ntfn_irq, seL4_CPtr ntfn_tick, voi
 
     pico_dev.mtu = MAXIMUM_TRANSFER_UNIT;
 
-    error = pico_device_init(&pico_dev, "sos picotcp", OUR_MAC);
+    error = pico_device_init(&pico_dev, "sos picotcp", mac_addr);
     ZF_LOGF_IF(error, "Failed to init picotcp");
 
     pico_string_to_ipv4(CONFIG_SOS_GATEWAY, &gateway.addr);

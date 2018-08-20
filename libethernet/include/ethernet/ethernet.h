@@ -64,12 +64,12 @@ typedef void (*ethif_recv_callback_t)(uint8_t *in_packet, int len);
  * Initialise the ethernet interface.
  *
  * @param base_addr      virtual address of the ethernet MAC (from sos_map_device)
- * @param mac            hardware MAC address that will be programmed into the interface
+ * @param mac            pointer to MAC address to be populated (using u-boot settings)
  * @param ops            populated ethif_dma_ops_t containg DMA operations for use by the driver
  * @param recv_callback  user-defined ethif_recv_callback_t.
  * @return ethif_err_t
  */
-ethif_err_t ethif_init(uint64_t base_addr, const uint8_t mac[6], ethif_dma_ops_t *ops,
+ethif_err_t ethif_init(uint64_t base_addr, uint8_t mac_out[6], ethif_dma_ops_t *ops,
                        ethif_recv_callback_t recv_callback);
 
 /**

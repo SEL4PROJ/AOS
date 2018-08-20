@@ -60,11 +60,12 @@ void ethif_irq(void)
     designware_ack(&uboot_eth_dev);
 }
 
-ethif_err_t ethif_init(uint64_t base_addr, const uint8_t mac[6], ethif_dma_ops_t *ops,
+ethif_err_t ethif_init(uint64_t base_addr, uint8_t mac_out[6], ethif_dma_ops_t *ops,
                        ethif_recv_callback_t recv_callback)
 {
     assert(ops);
     assert(recv_callback);
+    assert(mac_out);
 
     ZF_LOGI("Initialising ethernet interface...");
 
@@ -89,9 +90,30 @@ ethif_err_t ethif_init(uint64_t base_addr, const uint8_t mac[6], ethif_dma_ops_t
         return ETHIF_ERROR;
     }
 
+    /* We must read the MAC address out of the device after the register
+     * addresses have been initialized (designware_initialize), but before
+     * initializing the hardware (uboot_eth_dev.init), because initializing
+     * the hardware involves a soft reset which will wipe the MAC address
+     * which was configured by u-boot */
+
+    ret = designware_read_hwaddr(&uboot_eth_dev, mac_out);
+
+    if (ret != 0) {
+        ZF_LOGE("Failed: designware_read_hwaddr.");
+        return ETHIF_ERROR;
+    }
+
+    ZF_LOGI("Read MAC as [%02x:%02x:%02x:%02x:%02x:%02x]",
+            mac_out[0],
+            mac_out[1],
+            mac_out[2],
+            mac_out[3],
+            mac_out[4],
+            mac_out[5]);
+
     /* NOTE: This line determines what our MAC address will be, it is
      * internally programmed into the device during the next init step*/
-    memcpy(uboot_eth_dev.enetaddr, mac, 6);
+    memcpy(uboot_eth_dev.enetaddr, mac_out, 6);
 
     /* Bring up the interface - the last initialisation step */
     ret = uboot_eth_dev.init(&uboot_eth_dev);

@@ -261,6 +261,20 @@ static int _dw_write_hwaddr(struct dw_eth_dev *priv, u8 *mac_id)
 	return 0;
 }
 
+static int _dw_read_hwaddr(struct dw_eth_dev *priv, u8 *mac_out)
+{
+	assert(mac_out);
+	struct eth_mac_regs *mac_p = priv->mac_regs_p;
+
+	u32 macid_hi = readl(&mac_p->macaddr0hi);
+	u32 macid_lo = readl(&mac_p->macaddr0lo);
+
+	memcpy(mac_out,   &macid_lo, 4);
+	memcpy(mac_out+4, &macid_hi, 2);
+
+	return 0;
+}
+
 static int dw_adjust_link(struct dw_eth_dev *priv, struct eth_mac_regs *mac_p,
 			  struct phy_device *phydev)
 {
@@ -579,6 +593,10 @@ int designware_ack(struct eth_device *dev)
 {
     struct dw_eth_dev *priv = dev->priv;
     writel(DMA_INTR_DEFAULT_MASK, &priv->dma_regs_p->status);
+}
+
+int designware_read_hwaddr(struct eth_device *dev, u8 *mac_out) {
+	return _dw_read_hwaddr(dev->priv, mac_out);
 }
 
 int designware_initialize(ulong base_addr, u32 interface, struct eth_device *dev)
