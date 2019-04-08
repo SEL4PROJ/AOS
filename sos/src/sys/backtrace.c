@@ -1,4 +1,6 @@
-/* @TAG(OTHER_GPL) */
+/*
+ * @TAG(OTHER_GPL)
+ */
 /* Return backtrace of current program state.
    Copyright (C) 2003-2005,2007,2009,2011,2012 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
