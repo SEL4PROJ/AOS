@@ -59,6 +59,7 @@
 /* The linker will link this symbol to the start address  *
  * of an archive of attached applications.                */
 extern char _cpio_archive[];
+extern char _cpio_archive_end[];
 extern char __eh_frame_start[];
 /* provided by gcc */
 extern void (__register_frame)(void *);
@@ -198,7 +199,7 @@ static int stack_write(seL4_Word *mapped_stack, int index, uintptr_t val)
 
 /* set up System V ABI compliant stack, so that the process can
  * start up and initialise the C library */
-static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, char *elf_file)
+static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, elf_t *elf_file)
 {
     /* Create a stack frame */
     tty_test_process.stack_ut = alloc_retype(&tty_test_process.stack, seL4_ARM_SmallPageObject, seL4_PageBits);
@@ -383,18 +384,25 @@ bool start_first_process(char* app_name, seL4_CPtr ep)
 
     /* parse the cpio image */
     ZF_LOGI( "\nStarting \"%s\"...\n", app_name);
+    elf_t elf_file = {};
     unsigned long elf_size;
-    char* elf_base = cpio_get_file(_cpio_archive, app_name, &elf_size);
+    size_t cpio_len = _cpio_archive_end - _cpio_archive;
+    char* elf_base = cpio_get_file(_cpio_archive, cpio_len, app_name, &elf_size);
     if (elf_base == NULL) {
         ZF_LOGE("Unable to locate cpio header for %s", app_name);
         return false;
     }
+    /* Ensure that the file is an elf file. */
+    if (elf_newFile(elf_base, elf_size, &elf_file)) {
+        ZF_LOGE("Invalid elf file");
+        return -1;
+    }
 
     /* set up the stack */
-    seL4_Word sp = init_process_stack(&cspace, seL4_CapInitThreadVSpace, elf_base);
+    seL4_Word sp = init_process_stack(&cspace, seL4_CapInitThreadVSpace, &elf_file);
 
     /* load the elf image from the cpio file */
-    err = elf_load(&cspace, seL4_CapInitThreadVSpace, tty_test_process.vspace, elf_base);
+    err = elf_load(&cspace, seL4_CapInitThreadVSpace, tty_test_process.vspace, &elf_file);
     if (err) {
         ZF_LOGE("Failed to load elf image");
         return false;
@@ -410,7 +418,7 @@ bool start_first_process(char* app_name, seL4_CPtr ep)
 
     /* Start the new process */
     seL4_UserContext context = {
-        .pc = elf_getEntryPoint(elf_base),
+        .pc = elf_getEntryPoint(&elf_file),
         .sp = sp,
     };
     printf("Starting ttytest at %p\n", (void *) context.pc);

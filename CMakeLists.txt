@@ -51,7 +51,7 @@ set(LibPicotcpBsd ON CACHE BOOL "" FORCE)
 set(LibNfs ON CACHE BOOL "" FORCE)
 
 # Elfloader settings that correspond to how Data61 sets its boards up.
-ApplyData61ElfLoaderSettings()
+ApplyData61ElfLoaderSettings(${KernelARMPlatform} ${KernelArmSel4Arch})
 
 # domains == 1 for AOS
 set(KernelNumDomains 1 CACHE STRING "")

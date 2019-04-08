@@ -169,14 +169,8 @@ static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loader, seL4_CPt
     return 0;
 }
 
-int elf_load(cspace_t *cspace, seL4_CPtr loader_vspace, seL4_CPtr loadee_vspace, char *elf_file)
+int elf_load(cspace_t *cspace, seL4_CPtr loader_vspace, seL4_CPtr loadee_vspace, elf_t *elf_file)
 {
-
-    /* Ensure that the file is an elf file. */
-    if (elf_file == NULL || elf_checkFile(elf_file)) {
-        ZF_LOGE("Invalid elf file");
-        return -1;
-    }
 
     int num_headers = elf_getNumProgramHeaders(elf_file);
     for (int i = 0; i < num_headers; i++) {
@@ -187,7 +181,7 @@ int elf_load(cspace_t *cspace, seL4_CPtr loader_vspace, seL4_CPtr loadee_vspace,
         }
 
         /* Fetch information about this segment. */
-        char *source_addr = elf_file + elf_getProgramHeaderOffset(elf_file, i);
+        char *source_addr = elf_file->elfFile + elf_getProgramHeaderOffset(elf_file, i);
         size_t file_size = elf_getProgramHeaderFileSize(elf_file, i);
         size_t segment_size = elf_getProgramHeaderMemorySize(elf_file, i);
         uintptr_t vaddr = elf_getProgramHeaderVaddr(elf_file, i);
