@@ -34,7 +34,7 @@ static inline seL4_CapRights_t get_sel4_rights_from_elf(unsigned long permission
         return seL4_AllRights;
     }
 
-    return seL4_CapRights_new(false, canRead, canWrite);
+    return seL4_CapRights_new(false, false, canRead, canWrite);
 }
 
 /*
