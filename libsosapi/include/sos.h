@@ -11,8 +11,7 @@
  */
 /* Simple operating system interface */
 
-#ifndef _SOS_H
-#define _SOS_H
+#pragma once
 
 #include <stdio.h>
 #include <stdint.h>
@@ -149,5 +148,3 @@ int sos_share_vm(void *adr, size_t size, int writable);
  *
  * Returns 0 if successful, -1 otherwise (invalid address or size).
  */
-
-#endif

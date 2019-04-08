@@ -13,8 +13,17 @@ cmake_minimum_required(VERSION 3.7.2)
 
 project(libsosapi C)
 
-add_library(sosapi EXCLUDE_FROM_ALL src/sos.c src/sys_exit.c src/sys_morecore.c src/sys_stdio.c
-            src/sys_thread.c src/sys_time.c src/vsyscall.c)
+add_library(
+    sosapi
+    EXCLUDE_FROM_ALL
+    src/sos.c
+    src/sys_exit.c
+    src/sys_morecore.c
+    src/sys_stdio.c
+    src/sys_thread.c
+    src/sys_time.c
+    src/vsyscall.c
+)
 target_include_directories(sosapi PUBLIC include)
 target_link_libraries(sosapi Configuration muslc sel4 utils aos)
 

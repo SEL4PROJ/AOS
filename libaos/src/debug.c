@@ -43,7 +43,8 @@ void debug_print_bootinfo(seL4_BootInfo *info)
         int index = info->untypedList[i].sizeBits;
         assert(index < ARRAY_SIZE(sizes));
         sizes[index]++;
-        ZF_LOGD("%p | %zu | %d", (void*)info->untypedList[i].paddr, (size_t)info->untypedList[i].sizeBits, (int)info->untypedList[i].isDevice);
+        ZF_LOGD("%p | %zu | %d", (void *)info->untypedList[i].paddr, (size_t)info->untypedList[i].sizeBits,
+                (int)info->untypedList[i].isDevice);
     }
 
     ZF_LOGD("Untyped summary\n");
@@ -65,8 +66,8 @@ void debug_print_fault(seL4_MessageInfo_t tag, const char *thread_name)
                thread_name,
                debug_is_read_fault() ? "read" : "write",
                seL4_Fault_VMFault_get_PrefetchFault(fault) ? "prefetch fault" : "fault",
-               (void*)seL4_Fault_VMFault_get_IP(fault),
-               (void*)seL4_Fault_VMFault_get_Addr(fault),
+               (void *)seL4_Fault_VMFault_get_IP(fault),
+               (void *)seL4_Fault_VMFault_get_Addr(fault),
                (void *)seL4_Fault_VMFault_get_FSR(fault),
                COLOR_NORMAL);
         break;
@@ -88,7 +89,7 @@ void debug_print_fault(seL4_MessageInfo_t tag, const char *thread_name)
         printf("%sInvalid instruction from [%s] at PC: %p%s\n",
                COLOR_ERROR,
                thread_name,
-               (void*)seL4_Fault_UserException_get_FaultIP(fault),
+               (void *)seL4_Fault_UserException_get_FaultIP(fault),
                COLOR_NORMAL);
         break;
 
@@ -96,7 +97,7 @@ void debug_print_fault(seL4_MessageInfo_t tag, const char *thread_name)
         printf("%sCap fault from [%s] in phase %s\nPC = %p\nCPtr = %p%s\n",
                COLOR_ERROR, thread_name,
                seL4_Fault_CapFault_get_InRecvPhase(fault) ? "receive" : "send",
-               (void*) seL4_Fault_CapFault_get_IP(fault),
+               (void *) seL4_Fault_CapFault_get_IP(fault),
                (void *) seL4_Fault_CapFault_get_Addr(fault),
                COLOR_NORMAL);
         break;

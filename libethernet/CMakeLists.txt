@@ -13,8 +13,15 @@ cmake_minimum_required(VERSION 3.7.2)
 
 project(libethernet C)
 
-add_library(ethernet EXCLUDE_FROM_ALL
-            src/ethernet.c src/unimplemented.c src/uboot/designware.c
-            src/uboot/miiphyutil.c src/uboot/phy.c src/uboot/realtek.c)
+add_library(
+    ethernet
+    EXCLUDE_FROM_ALL
+    src/ethernet.c
+    src/unimplemented.c
+    src/uboot/designware.c
+    src/uboot/miiphyutil.c
+    src/uboot/phy.c
+    src/uboot/realtek.c
+)
 target_include_directories(ethernet PUBLIC include)
 target_link_libraries(ethernet Configuration muslc sel4 utils clock)

@@ -23,7 +23,8 @@ int sos_sys_open(const char *path, fmode_t mode)
     return -1;
 }
 
-int sos_sys_close(int file)  {
+int sos_sys_close(int file)
+{
     assert(!"You need to implement this");
     return -1;
 }

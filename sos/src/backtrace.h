@@ -16,14 +16,14 @@
 
 static inline void print_backtrace(void)
 {
-      void *array[10] = {NULL};
-      int size = 0;
+    void *array[10] = {NULL};
+    int size = 0;
 
-      size = backtrace(array, 10);
-      if (size) {
-          printf("Backtracing stack PCs:  \n");
-          for (int i = 0; i < size; i++) {
-              printf("%p\n", array[i]);
-          }
-      }
+    size = backtrace(array, 10);
+    if (size) {
+        printf("Backtracing stack PCs:  \n");
+        for (int i = 0; i < size; i++) {
+            printf("%p\n", array[i]);
+        }
+    }
 }

@@ -44,55 +44,55 @@ static void test_bf(void)
         assert(bf_get_bit(bitfield, i) == 0);
         bf_set_bit(bitfield, i);
         assert(bf_get_bit(bitfield, i));
-        assert(bf_first_free(2, bitfield) == i+1);
+        assert(bf_first_free(2, bitfield) == i + 1);
     }
 }
 
 static void test_cspace(cspace_t *cspace)
 {
     ZF_LOGI("Test cspace");
-   /* test we can alloc a cptr */
-   ZF_LOGV("Test allocating cslot");
-   seL4_CPtr cptr = cspace_alloc_slot(cspace);
-   assert(cptr != 0);
+    /* test we can alloc a cptr */
+    ZF_LOGV("Test allocating cslot");
+    seL4_CPtr cptr = cspace_alloc_slot(cspace);
+    assert(cptr != 0);
 
-   ZF_LOGV("Test freeing cslot");
-   /* test we can free the cptr */
-   cspace_free_slot(cspace, cptr);
+    ZF_LOGV("Test freeing cslot");
+    /* test we can free the cptr */
+    cspace_free_slot(cspace, cptr);
 
-   ZF_LOGV("Test free slot is returned");
-   /* test we get the same cptr back if we alloc again */
-   seL4_CPtr cptr_new = cspace_alloc_slot(cspace);
-   assert(cptr == cptr_new);
+    ZF_LOGV("Test free slot is returned");
+    /* test we get the same cptr back if we alloc again */
+    seL4_CPtr cptr_new = cspace_alloc_slot(cspace);
+    assert(cptr == cptr_new);
 
-   cspace_free_slot(cspace, cptr_new);
+    cspace_free_slot(cspace, cptr_new);
 
-   /* test allocating and freeing a large amount of slots */
-   int nslots = CNODE_SLOTS(CNODE_SIZE_BITS) / 2;
-   if (cspace->two_level) {
-       nslots = MIN(CNODE_SLOTS(cspace->top_lvl_size_bits) * CNODE_SLOTS(CNODE_SIZE_BITS) - 4,
-                    CNODE_SLOTS(CNODE_SIZE_BITS) * BOT_LVL_PER_NODE + 1);
-   }
-   seL4_CPtr *slots = malloc(sizeof(seL4_CPtr) * nslots);
-   assert(slots != NULL);
+    /* test allocating and freeing a large amount of slots */
+    int nslots = CNODE_SLOTS(CNODE_SIZE_BITS) / 2;
+    if (cspace->two_level) {
+        nslots = MIN(CNODE_SLOTS(cspace->top_lvl_size_bits) * CNODE_SLOTS(CNODE_SIZE_BITS) - 4,
+                     CNODE_SLOTS(CNODE_SIZE_BITS) * BOT_LVL_PER_NODE + 1);
+    }
+    seL4_CPtr *slots = malloc(sizeof(seL4_CPtr) * nslots);
+    assert(slots != NULL);
 
-   ZF_LOGV("Test allocating and freeing %d slots", nslots);
+    ZF_LOGV("Test allocating and freeing %d slots", nslots);
 
-   for (int i = 0; i < nslots; i++) {
-       slots[i] = cspace_alloc_slot(cspace);
-       if (slots[i] == seL4_CapNull) {
-           nslots = i;
-           break;
-       }
-   }
+    for (int i = 0; i < nslots; i++) {
+        slots[i] = cspace_alloc_slot(cspace);
+        if (slots[i] == seL4_CapNull) {
+            nslots = i;
+            break;
+        }
+    }
 
-   ZF_LOGV("Allocated %lu <-> %lu slots\n", slots[0], slots[nslots - 1]);
+    ZF_LOGV("Allocated %lu <-> %lu slots\n", slots[0], slots[nslots - 1]);
 
-   for (int i = 0; i < nslots; i++) {
-       cspace_free_slot(cspace, slots[i]);
-   }
+    for (int i = 0; i < nslots; i++) {
+        cspace_free_slot(cspace, slots[i]);
+    }
 
-   free(slots);
+    free(slots);
 }
 
 static void test_dma(void)

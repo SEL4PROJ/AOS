@@ -37,7 +37,7 @@ ethif_err_t ethif_recv(int *len)
 {
     assert(len);
     int result = uboot_eth_dev.recv(&uboot_eth_dev);
-    if(result >= 0) {
+    if (result >= 0) {
         *len = result;
         return ETHIF_NOERROR;
     }

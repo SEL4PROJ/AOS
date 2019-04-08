@@ -133,7 +133,7 @@ void *bootstrap_map_frame(cspace_t *cspace, seL4_CPtr cap)
 
 /* cspace allocation functions for the bootstrapped cspace */
 void *bootstrap_cspace_map_frame(void *cookie, seL4_CPtr cap, seL4_CPtr free_slots[MAPPING_SLOTS],
-                       seL4_Word *used)
+                                 seL4_Word *used)
 {
     seL4_Error err = map_frame_cspace((cspace_t *) cookie, cap, bootstrap_data.vspace, bootstrap_data.next_free_vaddr,
                                       seL4_AllRights, seL4_ARM_Default_VMAttributes, free_slots, used);
@@ -183,7 +183,7 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
 
     /* account for the number of page tables we need - plus a buffer of 1 */
     size_t n_pts = (ut_pages >> seL4_PageTableIndexBits) + 1;
-    size +=  (n_pts * BIT(seL4_PageTableBits));
+    size += (n_pts * BIT(seL4_PageTableBits));
     n_slots += n_pts;
 
     /* and the other paging structures */
@@ -211,7 +211,7 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
 
     /* check our cnodes will fit into our top level cnode */
     ZF_LOGF_IF(n_cnodes > CNODE_SLOTS(INITIAL_TASK_CNODE_SIZE_BITS), "Insufficient slots %lu for"
-            "bottom level cnodes %lu", CNODE_SLOTS(INITIAL_TASK_CNODE_SIZE_BITS), n_cnodes);
+               "bottom level cnodes %lu", CNODE_SLOTS(INITIAL_TASK_CNODE_SIZE_BITS), n_cnodes);
 
     /* now we have worked out how much memory we need to set up the system -
      * steal some memory from an untyped big enough to allocate it all from */
@@ -364,7 +364,8 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
             seL4_CPtr cnode = first_free_slot / slots_per_cnode;
 
             /* we can only retype the amount that will fit in a 2nd lvl cnode */
-            int retype = MIN((size_t) CONFIG_RETYPE_FAN_OUT_LIMIT, MIN(n_caps, slots_per_cnode - (first_free_slot % slots_per_cnode)));
+            int retype = MIN((size_t) CONFIG_RETYPE_FAN_OUT_LIMIT, MIN(n_caps,
+                                                                       slots_per_cnode - (first_free_slot % slots_per_cnode)));
             err = seL4_Untyped_Retype(bi->untyped.start + i, seL4_UntypedObject, seL4_PageBits,
                                       seL4_CapInitThreadCNode, cnode,
                                       seL4_WordBits - CNODE_SLOT_BITS(CNODE_SIZE_BITS),
@@ -382,9 +383,9 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     cspace->bot_lvl_nodes = bot_lvl_nodes;
     cspace->alloc = (cspace_alloc_t) {
         .map_frame = bootstrap_cspace_map_frame,
-         .alloc_4k_ut = bootstrap_cspace_alloc_4k_ut,
-          .free_4k_ut = bootstrap_cspace_free_4k_ut,
-           .cookie = cspace
+        .alloc_4k_ut = bootstrap_cspace_alloc_4k_ut,
+        .free_4k_ut = bootstrap_cspace_free_4k_ut,
+        .cookie = cspace
     };
 
     /* allocate and map enough frames to track the bottom levels nodes required */

@@ -92,16 +92,16 @@ static_assert(sizeof(bot_lvl_node_t) <= PAGE_SIZE_4K, "bot level node size is co
 
  This function is only used in 2 level cspaces.
 */
-typedef void * (*cspace_map_frame_fn)(void *cookie, seL4_CPtr frame, seL4_CPtr free_slots[], seL4_Word *used);
+typedef void *(*cspace_map_frame_fn)(void *cookie, seL4_CPtr frame, seL4_CPtr free_slots[], seL4_Word *used);
 /*
  Allocate a 4k untyped object. Return a handle that can be used to free the
  object, and the cptr to the object capability, in *cap.
  */
-typedef void * (*cspace_alloc_4k_ut_fn)(void *cookie, seL4_CPtr *cap);
+typedef void *(*cspace_alloc_4k_ut_fn)(void *cookie, seL4_CPtr *cap);
 /*
  Free a previously allocated 4k untyped object
 */
-typedef void   (*cspace_free_4k_ut_fn)(void *cookie, void *untyped);
+typedef void (*cspace_free_4k_ut_fn)(void *cookie, void *untyped);
 
 /* cspace allocation functions, which are passed on cspace create to allow
    a cspace to allocate its own resources */
@@ -232,7 +232,8 @@ void cspace_free_slot(cspace_t *c, seL4_CPtr slot);
  * @param rights    Rights that the copied cap should contain. Must be <= the rights on the source cap. Usualy seL4_AllRights.
  * @return seL4_NoError on success.
  */
-static inline seL4_Error cspace_copy(cspace_t *dest, seL4_CPtr dest_cptr, cspace_t *src, seL4_CPtr src_cptr, seL4_CapRights_t rights)
+static inline seL4_Error cspace_copy(cspace_t *dest, seL4_CPtr dest_cptr, cspace_t *src, seL4_CPtr src_cptr,
+                                     seL4_CapRights_t rights)
 {
     return seL4_CNode_Copy(dest->root_cnode, dest_cptr, seL4_WordBits,
                            src->root_cnode, src_cptr, seL4_WordBits, rights);
@@ -262,7 +263,8 @@ static inline seL4_Error cspace_delete(cspace_t *cspace, seL4_CPtr cptr)
  * @param badge     The data for the new capability. A badge in the case of an endpoint or notification cap, or a guard for a cnode cap.
  * @return seL4_NoError on success.
  */
-static inline seL4_Error cspace_mint(cspace_t *dest, seL4_CPtr dest_cptr, cspace_t *src, seL4_CPtr src_cptr, seL4_CapRights_t rights, seL4_Word badge)
+static inline seL4_Error cspace_mint(cspace_t *dest, seL4_CPtr dest_cptr, cspace_t *src, seL4_CPtr src_cptr,
+                                     seL4_CapRights_t rights, seL4_Word badge)
 {
     return seL4_CNode_Mint(dest->root_cnode, dest_cptr, seL4_WordBits,
                            src->root_cnode, src_cptr, seL4_WordBits, rights, badge);
@@ -294,7 +296,8 @@ static inline seL4_Error cspace_move(cspace_t *dest, seL4_CPtr dest_cptr, cspace
  * @param badge     The data to mutate the capability with. A badge in the case of an endpoint or notification cap, or a guard for a cnode cap.
  * @return seL4_NoError on success.
  */
-static inline seL4_Error cspace_mutate(cspace_t *dest, seL4_CPtr dest_cptr, cspace_t *src, seL4_CPtr src_cap, seL4_Word badge)
+static inline seL4_Error cspace_mutate(cspace_t *dest, seL4_CPtr dest_cptr, cspace_t *src, seL4_CPtr src_cap,
+                                       seL4_Word badge)
 {
     return seL4_CNode_Mutate(dest->root_cnode, dest_cptr, seL4_WordBits,
                              src->root_cnode, src_cap, seL4_WordBits, badge);
@@ -339,7 +342,8 @@ static inline seL4_Error cspace_save_reply_cap(cspace_t *cspace, seL4_CPtr cptr)
  * @param irq The hardware IRQ number that you want to handle.
  * @return seL4_NoError on success.
  */
-static inline seL4_Error cspace_irq_control_get(cspace_t *dest, seL4_CPtr cptr, seL4_IRQControl irq_cap, int irq, int level)
+static inline seL4_Error cspace_irq_control_get(cspace_t *dest, seL4_CPtr cptr, seL4_IRQControl irq_cap, int irq,
+                                                int level)
 {
     return seL4_IRQControl_GetTrigger(irq_cap, irq, level, dest->root_cnode, cptr, seL4_WordBits);
 }

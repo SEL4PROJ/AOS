@@ -332,7 +332,7 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
     seL4_Word top_index = bf_first_free(BITFIELD_SIZE(cspace->top_lvl_size_bits), cspace->top_bf);
     if ((cspace->two_level && top_index > CNODE_SLOTS(cspace->top_lvl_size_bits)) ||
         top_index >= CNODE_SLOTS(cspace->top_lvl_size_bits)) {
-            ZF_LOGE("Cspace is full!\n");
+        ZF_LOGE("Cspace is full!\n");
         return seL4_CapNull;
     }
 

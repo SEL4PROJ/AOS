@@ -9,8 +9,7 @@
  *
  * @TAG(DATA61_GPL)
  */
-#ifndef _TTYOUT_H
-#define _TTYOUT_H
+#pragma once
 
 #include <stdio.h>
 
@@ -22,5 +21,3 @@
 void ttyout_init(void);
 size_t sos_write(void *data, size_t count);
 size_t sos_read(void *data, size_t count);
-
-#endif

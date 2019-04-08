@@ -15,8 +15,8 @@
  *
  *      Description: Simple milestone 0 test.
  *
- *      Author:			Godfrey van der Linden
- *      Original Author:	Ben Leslie
+ *      Author:         Godfrey van der Linden
+ *      Original Author:    Ben Leslie
  *
  ****************************************************************************/
 
@@ -31,8 +31,7 @@
 
 // Block a thread forever
 // we do this by making an unimplemented system call.
-static void
-thread_block(void)
+static void thread_block(void)
 {
     /* construct some info about the IPC message tty_test will send
      * to sos -- it's 1 word long */
@@ -55,7 +54,7 @@ int main(void)
     do {
         printf("task:\tHello world, I'm\ttty_test!\n");
         thread_block();
-        // sleep(1);	// Implement this as a syscall
+        // sleep(1);    // Implement this as a syscall
     } while (1);
 
     return 0;

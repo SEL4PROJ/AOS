@@ -23,14 +23,14 @@ static ut_table_t table;
 
 static void push(ut_t **head, ut_t *new)
 {
-    new->next = (uintptr_t) *head;
+    new->next = (uintptr_t) * head;
     *head = new;
 }
 
 static ut_t *pop(ut_t **head)
 {
     ut_t *popped = *head;
-    *head = (ut_t *) (uintptr_t) (*head)->next;
+    *head = (ut_t *)(uintptr_t)(*head)->next;
     return popped;
 }
 

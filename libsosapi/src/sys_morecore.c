@@ -57,7 +57,7 @@ long sys_brk(va_list ap)
    here to support that. We make a bunch of assumptions in the process */
 long sys_mmap(va_list ap)
 {
-    void *addr = va_arg(ap, void*);
+    void *addr = va_arg(ap, void *);
     size_t length = va_arg(ap, size_t);
     int prot = va_arg(ap, int);
     int flags = va_arg(ap, int);

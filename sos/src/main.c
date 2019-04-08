@@ -308,7 +308,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
  * TODO: avoid leaking memory once you implement real processes, otherwise a user
  *       can force your OS to run out of memory by creating lots of failed processes.
  */
-bool start_first_process(char* app_name, seL4_CPtr ep)
+bool start_first_process(char *app_name, seL4_CPtr ep)
 {
     /* Create a VSpace */
     tty_test_process.vspace_ut = alloc_retype(&tty_test_process.vspace, seL4_ARM_PageGlobalDirectoryObject,
@@ -383,11 +383,11 @@ bool start_first_process(char* app_name, seL4_CPtr ep)
     NAME_THREAD(tty_test_process.tcb, app_name);
 
     /* parse the cpio image */
-    ZF_LOGI( "\nStarting \"%s\"...\n", app_name);
+    ZF_LOGI("\nStarting \"%s\"...\n", app_name);
     elf_t elf_file = {};
     unsigned long elf_size;
     size_t cpio_len = _cpio_archive_end - _cpio_archive;
-    char* elf_base = cpio_get_file(_cpio_archive, cpio_len, app_name, &elf_size);
+    char *elf_base = cpio_get_file(_cpio_archive, cpio_len, app_name, &elf_size);
     if (elf_base == NULL) {
         ZF_LOGE("Unable to locate cpio header for %s", app_name);
         return false;
@@ -431,7 +431,7 @@ bool start_first_process(char* app_name, seL4_CPtr ep)
  * Note that these objects will never be freed, so we do not
  * track the allocated ut objects anywhere
  */
-static void sos_ipc_init(seL4_CPtr* ipc_ep, seL4_CPtr* ntfn)
+static void sos_ipc_init(seL4_CPtr *ipc_ep, seL4_CPtr *ntfn)
 {
     /* Create an notification object for interrupts */
     ut_t *ut = alloc_retype(ntfn, seL4_NotificationObject, seL4_NotificationBits);

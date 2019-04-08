@@ -153,7 +153,7 @@ static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loader, seL4_CPt
         /* finally copy the data */
         size_t nbytes = PAGE_SIZE_4K - (dst % PAGE_SIZE_4K);
         if (pos < file_size) {
-            memcpy((void *) (loader_vaddr + (dst % PAGE_SIZE_4K)), src, MIN(nbytes, file_size - pos));
+            memcpy((void *)(loader_vaddr + (dst % PAGE_SIZE_4K)), src, MIN(nbytes, file_size - pos));
         }
 
         /* Note that we don't need to explicitly zero frames as seL4 gives us zero'd frames */

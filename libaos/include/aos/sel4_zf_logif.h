@@ -26,22 +26,22 @@
  */
 
 #define ZF_LOGD_IFERR(err, fmt, ...) \
-	if ((err) != seL4_NoError) \
-		{ ZF_LOGD("[Err %s]:\n\t" fmt, sel4_strerror(err), ## __VA_ARGS__); }
+    if ((err) != seL4_NoError) \
+        { ZF_LOGD("[Err %s]:\n\t" fmt, sel4_strerror(err), ## __VA_ARGS__); }
 
 #define ZF_LOGI_IFERR(err, fmt, ...) \
-	if ((err) != seL4_NoError) \
-		{ ZF_LOGI("[Err %s]:\n\t" fmt, sel4_strerror(err), ## __VA_ARGS__); }
+    if ((err) != seL4_NoError) \
+        { ZF_LOGI("[Err %s]:\n\t" fmt, sel4_strerror(err), ## __VA_ARGS__); }
 
 #define ZF_LOGW_IFERR(err, fmt, ...) \
-	if ((err) != seL4_NoError) \
-		{ ZF_LOGW("[Err %s]:\n\t" fmt, sel4_strerror(err), ## __VA_ARGS__); }
+    if ((err) != seL4_NoError) \
+        { ZF_LOGW("[Err %s]:\n\t" fmt, sel4_strerror(err), ## __VA_ARGS__); }
 
 #define ZF_LOGE_IFERR(err, fmt, ...) \
-	if ((err) != seL4_NoError) \
-		{ ZF_LOGE("[Err %s]:\n\t" fmt, sel4_strerror(err), ## __VA_ARGS__); }
+    if ((err) != seL4_NoError) \
+        { ZF_LOGE("[Err %s]:\n\t" fmt, sel4_strerror(err), ## __VA_ARGS__); }
 
 #define ZF_LOGF_IFERR(err, fmt, ...) \
-	if ((err) != seL4_NoError) \
-		{ ZF_LOGF("[Err %s]:\n\t" fmt, sel4_strerror(err), ## __VA_ARGS__); }
+    if ((err) != seL4_NoError) \
+        { ZF_LOGF("[Err %s]:\n\t" fmt, sel4_strerror(err), ## __VA_ARGS__); }
 

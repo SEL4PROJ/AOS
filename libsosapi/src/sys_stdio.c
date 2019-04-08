@@ -35,8 +35,7 @@
 #define STDOUT_FD 1
 #define STDERR_FD 2
 
-long
-sys_writev(va_list ap)
+long sys_writev(va_list ap)
 {
     int fildes = va_arg(ap, int);
     struct iovec *iov = va_arg(ap, struct iovec *);
@@ -81,7 +80,7 @@ sys_writev(va_list ap)
 long sys_readv(va_list ap)
 {
     int fd = va_arg(ap, int);
-    struct iovec *iov = va_arg(ap, struct iovec*);
+    struct iovec *iov = va_arg(ap, struct iovec *);
     int iovcnt = va_arg(ap, int);
     int i;
     long read;
@@ -96,7 +95,7 @@ long sys_readv(va_list ap)
 long sys_read(va_list ap)
 {
     int fd = va_arg(ap, int);
-    void *buf = va_arg(ap, void*);
+    void *buf = va_arg(ap, void *);
     size_t count = va_arg(ap, size_t);
     /* construct an iovec and call readv */
     struct iovec iov = {.iov_base = buf, .iov_len = count };
@@ -106,7 +105,7 @@ long sys_read(va_list ap)
 long sys_write(va_list ap)
 {
     int fd = va_arg(ap, int);
-    void *buf = va_arg(ap, void*);
+    void *buf = va_arg(ap, void *);
     size_t count = va_arg(ap, size_t);
     /* construct an iovec and call readv */
     struct iovec iov = {.iov_base = buf, .iov_len = count };

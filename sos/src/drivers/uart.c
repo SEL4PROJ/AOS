@@ -30,14 +30,14 @@ static volatile struct {
 
 void uart_init(cspace_t *cspace)
 {
-   /* map the device */
-   void *uart_vaddr = sos_map_device(cspace, PAGE_ALIGN_4K(UART_PADDR), PAGE_SIZE_4K);
-   ZF_LOGF_IF(uart_vaddr == NULL, "Failed to map uart");
+    /* map the device */
+    void *uart_vaddr = sos_map_device(cspace, PAGE_ALIGN_4K(UART_PADDR), PAGE_SIZE_4K);
+    ZF_LOGF_IF(uart_vaddr == NULL, "Failed to map uart");
 
-   uart = uart_vaddr + (UART_PADDR & MASK((size_t) seL4_PageBits));
+    uart = uart_vaddr + (UART_PADDR & MASK((size_t) seL4_PageBits));
 
-   /* enable the device */
-   uart->control |= UART_CONTROL_TX_ENABLE;
+    /* enable the device */
+    uart->control |= UART_CONTROL_TX_ENABLE;
 }
 
 void uart_putchar(char c)

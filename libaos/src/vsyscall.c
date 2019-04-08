@@ -24,7 +24,7 @@ static int *boot_set_tid_address_arg;
 
 static long boot_set_tid_address(va_list ap)
 {
-    int *tid = va_arg(ap, int*);
+    int *tid = va_arg(ap, int *);
     if (boot_set_tid_address_happened) {
         ZF_LOGE("Boot version of set_tid_address somehow got called twice");
         return 1;
@@ -51,7 +51,7 @@ long boot_sys_writev(va_list ap)
     ssize_t ret = 0;
 
     for (int i = 0; i < iovcnt; i++) {
-        char * UNUSED base = (char*)iov[i].iov_base;
+        char *UNUSED base = (char *)iov[i].iov_base;
         for (int j = 0; j < iov[i].iov_len; j++) {
 #ifdef CONFIG_PRINTING
             seL4_DebugPutChar(base[j]);

@@ -80,7 +80,7 @@ static int pico_eth_poll(UNUSED struct pico_device *dev, int loop_score)
         int len;
         int retval = ethif_recv(&len); /* This will internally call 'raw_recv_callback'
                                         * (if a packet is actually available) */
-        if(retval == ETHIF_ERROR || len == 0) {
+        if (retval == ETHIF_ERROR || len == 0) {
             break;
         }
         loop_score--;
@@ -103,7 +103,7 @@ ethif_dma_addr_t ethif_dma_malloc(uint32_t size, uint32_t align)
 {
     dma_addr_t addr = sos_dma_malloc(size, align);
     ethif_dma_addr_t eaddr =
-        { .paddr = addr.paddr, .vaddr = addr.vaddr, .size = size };
+    { .paddr = addr.paddr, .vaddr = addr.vaddr, .size = size };
     ZF_LOGD("ethif_dma_malloc -> vaddr: %lx, paddr: %lx\n, sz: %lx",
             eaddr.vaddr, eaddr.paddr, eaddr.size);
     return eaddr;
@@ -155,7 +155,8 @@ void network_tick(void)
 }
 
 static seL4_CPtr init_irq(cspace_t *cspace, int irq_number, int edge_triggered,
-                          seL4_CPtr ntfn) {
+                          seL4_CPtr ntfn)
+{
     seL4_CPtr irq_handler = cspace_alloc_slot(cspace);
     ZF_LOGF_IF(irq_handler == seL4_CapNull, "Failed to alloc slot for irq handler!");
     seL4_Error error = cspace_irq_control_get(cspace, irq_handler, seL4_CapIRQControl, irq_number, edge_triggered);

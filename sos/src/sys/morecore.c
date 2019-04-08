@@ -57,7 +57,7 @@ long sys_brk(va_list ap)
 
 long sys_mmap(va_list ap)
 {
-    UNUSED void *addr = va_arg(ap, void*);
+    UNUSED void *addr = va_arg(ap, void *);
     size_t length = va_arg(ap, size_t);
     UNUSED int prot = va_arg(ap, int);
     int flags = va_arg(ap, int);
@@ -77,6 +77,7 @@ long sys_mmap(va_list ap)
     return -ENOMEM;
 }
 
-long sys_madvise(UNUSED va_list ap) {
+long sys_madvise(UNUSED va_list ap)
+{
     return 0;
 }

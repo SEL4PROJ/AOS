@@ -22,8 +22,10 @@ KB = 1024.0
 CCNT_SCALE = 64
 CLOCK_HZ = (792000000)
 
+
 def kb_per_s(cycles, size):
     return CLOCK_HZ * size / (CCNT_SCALE * cycles) / KB
+
 
 def main():
     parser = argparse.ArgumentParser(description='Parse AOS filesystem benchmark results')
@@ -54,14 +56,15 @@ def main():
         # compute the checksum
         check_sum = sum(row['samples'])
         if check_sum != row['check_sum']:
-            print('error! checksum incomplete (got {0} expected {1}) for row:\n {0}'.format(check_sum, row['check_sum'], row))
+            print('error! checksum incomplete (got {0} expected {1}) for row:\n {0}'.format(
+                check_sum, row['check_sum'], row))
             return -1
 
-        samples = [ kb_per_s(sample, row['file_size']) for sample in row['samples']]
+        samples = [kb_per_s(sample, row['file_size']) for sample in row['samples']]
         all_samples = all_samples + samples
         # compute mean and stddev
-        average = numpy.mean (samples)
-        error =   numpy.std(samples)
+        average = numpy.mean(samples)
+        error = numpy.std(samples)
 
         ys[row['name']].append(average)
         errors[row['name']].append(error)
@@ -83,6 +86,7 @@ def main():
     plt.savefig('results.png')
 
     print("Harmonic mean of all samples: {} (KB/S)".format(str(stats.hmean(all_samples))))
+
 
 if __name__ == '__main__':
     sys.exit(main())

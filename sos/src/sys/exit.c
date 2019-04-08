@@ -26,36 +26,31 @@ static void sos_abort(void)
     /* We don't return after this */
 }
 
-long
-sys_exit(UNUSED va_list ap)
+long sys_exit(UNUSED va_list ap)
 {
     abort();
     return 0;
 }
 
-long
-sys_rt_sigprocmask(UNUSED va_list ap)
+long sys_rt_sigprocmask(UNUSED va_list ap)
 {
     ZF_LOGV("Ignoring call to %s\n", __FUNCTION__);
     return 0;
 }
 
-long
-sys_gettid(UNUSED va_list ap)
+long sys_gettid(UNUSED va_list ap)
 {
     ZF_LOGV("Ignoring call to %s\n", __FUNCTION__);
     return 0;
 }
 
-long
-sys_getpid(UNUSED va_list ap)
+long sys_getpid(UNUSED va_list ap)
 {
     ZF_LOGV("Ignoring call to %s\n", __FUNCTION__);
     return 0;
 }
 
-long
-sys_tgkill(UNUSED va_list ap)
+long sys_tgkill(UNUSED va_list ap)
 {
     ZF_LOGV("%s assuming self kill\n", __FUNCTION__);
     sos_abort();
@@ -69,8 +64,7 @@ long sys_tkill(UNUSED va_list ap)
     return 0;
 }
 
-long
-sys_exit_group(UNUSED va_list ap)
+long sys_exit_group(UNUSED va_list ap)
 {
     ZF_LOGV("Ignoring call to %s", __FUNCTION__);
     return 0;

@@ -49,8 +49,8 @@
  * to be for 4 MB */
 #define TOTAL_FILE_SIZE (4 * MB)
 
-_Static_assert (BIT(MAX_BUF_SIZE) <= TOTAL_FILE_SIZE, "total file size must be a multiple of MAX_BUF_SIZE");
-_Static_assert (MIN_BUF_SIZE > 0, "min buf size bigger than 0");
+_Static_assert(BIT(MAX_BUF_SIZE) <= TOTAL_FILE_SIZE, "total file size must be a multiple of MAX_BUF_SIZE");
+_Static_assert(MIN_BUF_SIZE > 0, "min buf size bigger than 0");
 _Static_assert(MAX_BUF_SIZE >= MIN_BUF_SIZE, "min buf size smaller than or eq to max buf size");
 
 /* name of the benchmark file to write/read to */

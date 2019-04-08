@@ -27,7 +27,7 @@
 
 long sys_nanosleep(va_list ap)
 {
-    struct timespec *req = va_arg(ap, struct timespec*);
+    struct timespec *req = va_arg(ap, struct timespec *);
     /* construct a sleep call */
     int millis = req->tv_sec * MS_IN_S;
     millis += req->tv_nsec / NS_IN_MS;
@@ -38,7 +38,7 @@ long sys_nanosleep(va_list ap)
 long sys_clock_gettime(va_list ap)
 {
     clockid_t clk_id = va_arg(ap, clockid_t);
-    struct timespec *res = va_arg(ap, struct timespec*);
+    struct timespec *res = va_arg(ap, struct timespec *);
     if (clk_id != CLOCK_REALTIME) {
         return -EINVAL;
     }

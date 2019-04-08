@@ -43,10 +43,10 @@ typedef struct {
  * DMA operations required by the ethernet interface driver
  */
 typedef struct {
-    ethif_dma_addr_t (*dma_malloc)              (uint32_t size, uint32_t align);
-    uintptr_t        (*dma_phys_to_virt)        (uintptr_t phys);
-    uint32_t         (*flush_dcache_range)      (uintptr_t addr, size_t size);
-    uint32_t         (*invalidate_dcache_range) (uintptr_t addr, size_t size);
+    ethif_dma_addr_t (*dma_malloc)(uint32_t size, uint32_t align);
+    uintptr_t (*dma_phys_to_virt)(uintptr_t phys);
+    uint32_t (*flush_dcache_range)(uintptr_t addr, size_t size);
+    uint32_t (*invalidate_dcache_range)(uintptr_t addr, size_t size);
 } ethif_dma_ops_t;
 
 /**

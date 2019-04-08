@@ -26,7 +26,7 @@ long sys_nanosleep(va_list ap)
         freq = timestamp_get_freq();
     }
 
-    struct timespec *req = va_arg(ap, struct timespec*);
+    struct timespec *req = va_arg(ap, struct timespec *);
 
     /* for now we just spin and yield -- TODO consider using a continuation
      * and setting a timeout so interrupts can be handled while sos sleeps, after the timer
@@ -49,7 +49,7 @@ long sys_clock_gettime(va_list ap)
     }
 
     clockid_t clk_id = va_arg(ap, clockid_t);
-    struct timespec *res = va_arg(ap, struct timespec*);
+    struct timespec *res = va_arg(ap, struct timespec *);
     if (clk_id != CLOCK_REALTIME) {
         return -EINVAL;
     }

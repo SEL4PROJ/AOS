@@ -14,7 +14,7 @@
  *      $Id:  $
  *
  *      Description: Simple milestone 0 code.
- *      		     Libc will need sos_write & sos_read implemented.
+ *                   Libc will need sos_write & sos_read implemented.
  *
  *      Author:      Ben Leslie
  *

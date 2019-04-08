@@ -37,7 +37,7 @@ const char *sel4_strerror(int errcode)
 }
 
 void __sel4_error(int sel4_error, const char *file,
-                  const char *function, int line, char * str)
+                  const char *function, int line, char *str)
 {
     printf("seL4 Error: %s, function %s, file %s, line %d: %s\n",
            sel4_errlist[sel4_error],

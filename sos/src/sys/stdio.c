@@ -115,7 +115,7 @@ long sys_writev(va_list ap)
 long sys_read(va_list ap)
 {
     int fd = va_arg(ap, int);
-    void *buf = va_arg(ap, void*);
+    void *buf = va_arg(ap, void *);
     size_t count = va_arg(ap, size_t);
     /* construct an iovec and call readv */
     struct iovec iov = {.iov_base = buf, .iov_len = count };
@@ -180,7 +180,8 @@ long sys_bind(va_list ap)
     return -EINVAL;
 }
 
-long sys_listen(va_list ap) {
+long sys_listen(va_list ap)
+{
     int sd = va_arg(ap, int);
     int backlog = va_arg(ap, int);
 
