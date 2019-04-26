@@ -26,6 +26,7 @@
 #include <serial/serial.h>
 
 #include "bootstrap.h"
+#include "irq.h"
 #include "network.h"
 #include "drivers/uart.h"
 #include "ut.h"
@@ -37,15 +38,17 @@
 
 #include <aos/vsyscall.h>
 
-/* To differentiate between signals from notification objects and and IPC messages,
+/*
+ * To differentiate between signals from notification objects and and IPC messages,
  * we assign a badge to the notification object. The badge that we receive will
  * be the bitwise 'OR' of the notification object badge and the badges
- * of all pending IPC messages. */
-#define IRQ_EP_BADGE         BIT(seL4_BadgeBits - 1)
-/* All badged IRQs set high bet, then we use uniq bits to
- * distinguish interrupt sources */
-#define IRQ_BADGE_NETWORK_IRQ  BIT(0)
-#define IRQ_BADGE_NETWORK_TICK BIT(1)
+ * of all pending IPC messages.
+ *
+ * All badged IRQs set high bet, then we use uniqe bits to
+ * distinguish interrupt sources.
+ */
+#define IRQ_EP_BADGE         BIT(seL4_BadgeBits - 1ul)
+#define IRQ_IDENT_BADGE_BITS MASK(seL4_BadgeBits - 1ul)
 
 #define TTY_NAME             "tty_test"
 #define TTY_PRIORITY         (0)
@@ -138,14 +141,7 @@ NORETURN void syscall_loop(seL4_CPtr ep)
         if (badge & IRQ_EP_BADGE) {
             /* It's a notification from our bound notification
              * object! */
-            if (badge & IRQ_BADGE_NETWORK_IRQ) {
-                /* It's an interrupt from the ethernet MAC */
-                network_irq();
-            }
-            if (badge & IRQ_BADGE_NETWORK_TICK) {
-                /* It's an interrupt from the watchdog keeping our TCP/IP stack alive */
-                network_tick();
-            }
+            sos_handle_irq_notification(&badge);
         } else if (label == seL4_Fault_NullFault) {
             /* It's not a fault or an interrupt, it must be an IPC
              * message from tty_test! */
@@ -446,20 +442,6 @@ static void sos_ipc_init(seL4_CPtr *ipc_ep, seL4_CPtr *ntfn)
     ZF_LOGF_IF(!ut, "No memory for endpoint");
 }
 
-static inline seL4_CPtr badge_irq_ntfn(seL4_CPtr ntfn, seL4_Word badge)
-{
-    /* allocate a slot */
-    seL4_CPtr badged_cap = cspace_alloc_slot(&cspace);
-    ZF_LOGF_IF(badged_cap == seL4_CapNull, "Failed to allocate slot");
-
-    /* mint the cap, which sets the badge */
-    seL4_Error err = cspace_mint(&cspace, badged_cap, &cspace, ntfn, seL4_AllRights, badge | IRQ_EP_BADGE);
-    ZF_LOGE_IFERR(err, "Failed to mint cap");
-
-    /* return the badged cptr */
-    return badged_cap;
-}
-
 /* called by crt */
 seL4_CPtr get_seL4_CapInitThreadTCB(void)
 {
@@ -509,6 +491,13 @@ NORETURN void *main_continued(UNUSED void *arg)
     /* Initialise other system compenents here */
     seL4_CPtr ipc_ep, ntfn;
     sos_ipc_init(&ipc_ep, &ntfn);
+    sos_init_irq_dispatch(
+        &cspace,
+        seL4_CapIRQControl,
+        ntfn,
+        IRQ_EP_BADGE,
+        IRQ_IDENT_BADGE_BITS
+    );
 
     /* run sos initialisation tests */
     run_tests(&cspace);
@@ -520,10 +509,7 @@ NORETURN void *main_continued(UNUSED void *arg)
 
     /* Initialise the network hardware. */
     printf("Network init\n");
-    network_init(&cspace,
-                 badge_irq_ntfn(ntfn, IRQ_BADGE_NETWORK_IRQ),
-                 badge_irq_ntfn(ntfn, IRQ_BADGE_NETWORK_TICK),
-                 timer_vaddr);
+    network_init(&cspace, timer_vaddr);
 
     /* Start the user application */
     printf("Start first process\n");

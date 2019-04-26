@@ -44,6 +44,7 @@
 #include "vmem_layout.h"
 #include "dma.h"
 #include "mapping.h"
+#include "irq.h"
 #include "ut.h"
 
 
@@ -60,7 +61,6 @@
 
 static struct pico_device pico_dev;
 static struct nfs_context *nfs = NULL;
-static seL4_CPtr irq_handler_network, irq_handler_tick;
 static void nfs_mount_cb(int status, struct nfs_context *nfs, void *data, void *private_data);
 
 static int pico_eth_send(UNUSED struct pico_device *dev, void *input_buf, int len)
@@ -139,44 +139,53 @@ static void network_tick_internal(void)
 }
 
 /* Handler for IRQs from the ethernet MAC */
-void network_irq(void)
+static int network_irq(
+    UNUSED void *data,
+    UNUSED seL4_Word irq,
+    seL4_IRQHandler irq_handler
+)
 {
     ethif_irq();
-    seL4_IRQHandler_Ack(irq_handler_network);
+    seL4_IRQHandler_Ack(irq_handler);
     network_tick_internal();
+    return 0;
 }
 
 /* Handler for IRQs from the watchdog timer */
-void network_tick(void)
+static int network_tick(
+    UNUSED void *data,
+    UNUSED seL4_Word irq,
+    seL4_IRQHandler irq_handler
+)
 {
     network_tick_internal();
     watchdog_reset();
-    seL4_IRQHandler_Ack(irq_handler_tick);
-}
-
-static seL4_CPtr init_irq(cspace_t *cspace, int irq_number, int edge_triggered,
-                          seL4_CPtr ntfn)
-{
-    seL4_CPtr irq_handler = cspace_alloc_slot(cspace);
-    ZF_LOGF_IF(irq_handler == seL4_CapNull, "Failed to alloc slot for irq handler!");
-    seL4_Error error = cspace_irq_control_get(cspace, irq_handler, seL4_CapIRQControl, irq_number, edge_triggered);
-    ZF_LOGF_IF(error, "Failed to get irq handler for irq %d", irq_number);
-    error = seL4_IRQHandler_SetNotification(irq_handler, ntfn);
-    ZF_LOGF_IF(error, "Failed to set irq handler ntfn");
     seL4_IRQHandler_Ack(irq_handler);
-    return irq_handler;
+    return 0;
 }
 
-void network_init(cspace_t *cspace, seL4_CPtr ntfn_irq, seL4_CPtr ntfn_tick, void *timer_vaddr)
+static void init_irq(
+    int irq_number,
+    int edge_triggered,
+    sos_irq_callback_t callback
+)
+{
+    seL4_IRQHandler irq_handler = 0;
+    int init_irq_err = sos_register_irq_handler(irq_number, edge_triggered, callback, NULL, &irq_handler);
+    ZF_LOGF_IF(init_irq_err != 0, "Failed to initialise IRQ");
+    seL4_IRQHandler_Ack(irq_handler);
+}
+
+void network_init(cspace_t *cspace, void *timer_vaddr)
 {
     int error;
     ZF_LOGI("\nInitialising network...\n\n");
 
     /* set up the network device irq */
-    irq_handler_network = init_irq(cspace, NETWORK_IRQ, 1, ntfn_irq);
+    init_irq(NETWORK_IRQ, true, network_irq);
 
     /* set up the network tick irq (watchdog timer) */
-    irq_handler_tick = init_irq(cspace, WATCHDOG_IRQ, 1, ntfn_tick);
+    init_irq(WATCHDOG_IRQ, true, network_tick);
 
     /* Configure a watchdog IRQ for 1 millisecond from now. Whenever the watchdog is reset
      * using watchdog_reset(), we will get another IRQ 1ms later */

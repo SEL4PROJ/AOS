@@ -43,6 +43,7 @@ add_executable(
     src/bootstrap.c
     src/dma.c
     src/elf.c
+    src/irq.c
     src/main.c
     src/mapping.c
     src/network.c

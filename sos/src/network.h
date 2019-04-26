@@ -24,15 +24,4 @@
  *                       using the SoC's watchdog timer (which is not used by your timer driver
  *                       and has a completely different programming model!)
  */
-void network_init(cspace_t *cspace, seL4_CPtr ntfn_irq, seL4_CPtr ntfn_tick, void *timer_vaddr);
-
-/**
- * Tell the network driver to handle a watchdog tick IRQ. This is required as the TCP/IP stack and libnfs
- * need to check internal timeouts even if there are no network interrupts.
- */
-void network_tick(void);
-
-/**
- * Tell the network driver to handle an ethernet device IRQ
- */
-void network_irq(void);
+void network_init(cspace_t *cspace, void *timer_vaddr);
