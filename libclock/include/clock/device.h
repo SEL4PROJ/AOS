@@ -18,6 +18,10 @@
 
 /**
  * Identifiers for each of the timeout timers.
+ *
+ * Whilst there are 8 countdown timers provided by the hardware, we only
+ * make 4 accessible here as timers F-I cannot have their current
+ * timeout read.
  */
 typedef enum {
     MESON_TIMER_A,
