@@ -9,12 +9,29 @@
  *
  * @TAG(DATA61_GPL)
  */
+#include <stdlib.h>
+#include <stdint.h>
 #include <clock/clock.h>
 
+/* The functions in src/device.h should help you interact with the timer
+ * to set registers and configure timeouts. */
+#include "device.h"
 
-int start_timer(seL4_CPtr ntfn, seL4_CPtr irqhandler, void *device_vaddr)
+static struct {
+    volatile meson_timer_reg_t *regs;
+    /* Add fields as you see necessary */
+} clock;
+
+int start_timer(unsigned char *timer_vaddr)
 {
-    return CLOCK_R_FAIL;
+    int err = stop_timer();
+    if (err != 0) {
+        return err;
+    }
+
+    clock.regs = (meson_timer_reg_t *)(timer_vaddr + TIMER_REG_START);
+
+    return CLOCK_R_OK;
 }
 
 uint32_t register_timer(uint64_t delay, timer_callback_t callback, void *data)
@@ -27,12 +44,21 @@ int remove_timer(uint32_t id)
     return CLOCK_R_FAIL;
 }
 
-int timer_interrupt(void)
+int timer_irq(
+    void *data,
+    seL4_Word irq,
+    seL4_IRQHandler irq_handler
+)
 {
+    /* Handle the IRQ */
+
+    /* Acknowledge that the IRQ has been handled */
     return CLOCK_R_FAIL;
 }
 
 int stop_timer(void)
 {
+    /* Stop the timer from producing further interrupts and remove all
+     * existing timeouts */
     return CLOCK_R_FAIL;
 }

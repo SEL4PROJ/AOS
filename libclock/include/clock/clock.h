@@ -30,40 +30,48 @@ typedef void (*timer_callback_t)(uint32_t id, void *data);
 
 /*
  * Initialise driver. Performs implicit stop_timer() if already initialised.
- *    interrupt_ep:       A (possibly badged) async endpoint that the driver
-                          should use for deliverying interrupts to
  *
- * Returns CLOCK_R_OK iff successful.
+ * @param timer_vaddr  Virtual address of mapped page containing device
+ *                     registers
+ * @return             CLOCK_R_OK iff successful.
  */
-int start_timer(seL4_CPtr ntfn, seL4_CPtr irqhandler, void *device_vaddr);
+int start_timer(unsigned char *timer_vaddr);
 
-/*
+/**
+ * Get the current clock time in microseconds.
+ */
+timestamp_t get_time(void);
+
+/**
  * Register a callback to be called after a given delay
- *    delay:  Delay time in microseconds before callback is invoked
- *    callback: Function to be called
- *    data: Custom data to be passed to callback function
  *
- * Returns 0 on failure, otherwise an unique ID for this timeout
+ * @param delay     Delay time in microseconds before callback is invoked
+ * @param callback  Function to be called
+ * @param data      Custom data to be passed to callback function
+ * @return          0 on failure, otherwise an unique ID for this timeout
  */
 uint32_t register_timer(uint64_t delay, timer_callback_t callback, void *data);
 
-/*
+/**
  * Remove a previously registered callback by its ID
- *    id: Unique ID returned by register_time
- * Returns CLOCK_R_OK iff successful.
+ *
+ * @param id  Unique ID returned by register_time
+ * @return    CLOCK_R_OK iff successful.
  */
 int remove_timer(uint32_t id);
 
 /*
- * Handle an interrupt message sent to 'interrupt_ep' from start_timer
- *
- * Returns CLOCK_R_OK iff successful
- */
-int timer_interrupt(void);
-
-/*
  * Stop clock driver operation.
  *
- * Returns CLOCK_R_OK iff successful.
+ * @return   CLOCK_R_OK iff successful.
  */
 int stop_timer(void);
+
+/*
+ * Signal to the timer than an IRQ was received.
+ */
+int timer_irq(
+    void *data,
+    seL4_Word irq,
+    seL4_IRQHandler irq_handler
+);

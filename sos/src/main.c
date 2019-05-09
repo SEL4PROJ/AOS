@@ -505,11 +505,17 @@ NORETURN void *main_continued(UNUSED void *arg)
     /* Map the timer device (NOTE: this is the same mapping you will use for your timer driver -
      * sos uses the watchdog timers on this page to implement reset infrastructure & network ticks,
      * so touching the watchdog timers here is not recommended!) */
-    void *timer_vaddr = sos_map_device(&cspace, PAGE_ALIGN_4K(TIMER_PADDR), PAGE_SIZE_4K);
+    void *timer_vaddr = sos_map_device(&cspace, PAGE_ALIGN_4K(TIMER_MAP_BASE), PAGE_SIZE_4K);
 
     /* Initialise the network hardware. */
     printf("Network init\n");
     network_init(&cspace, timer_vaddr);
+
+    /* Initialises the timer */
+    printf("Timer init\n");
+    start_timer(timer_vaddr);
+    /* You will need to register an IRQ handler for the timer here.
+     * See "irq.h". */
 
     /* Start the user application */
     printf("Start first process\n");

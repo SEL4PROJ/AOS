@@ -13,6 +13,6 @@ cmake_minimum_required(VERSION 3.7.2)
 
 project(libclock C)
 
-add_library(clock EXCLUDE_FROM_ALL src/clock.c)
+add_library(clock EXCLUDE_FROM_ALL src/clock.c src/device.c)
 target_include_directories(clock PUBLIC include)
 target_link_libraries(clock Configuration muslc sel4 utils)
