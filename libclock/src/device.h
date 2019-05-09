@@ -30,13 +30,7 @@
 
 /* Timer mux 0 */
 
-#define TIMER_E_MUX        0
 #define TIMER_E_INPUT_CLK  8
-
-#define TIMER_A_MUX  0
-#define TIMER_B_MUX  0
-#define TIMER_C_MUX  0
-#define TIMER_D_MUX  0
 
 #define TIMER_A_INPUT_CLK  0
 #define TIMER_B_INPUT_CLK  2
@@ -53,11 +47,6 @@
 #define TIMER_D_MODE  BIT(15)
 
 /* Timer mux 1 */
-
-#define TIMER_F_MUX  1
-#define TIMER_G_MUX  1
-#define TIMER_H_MUX  1
-#define TIMER_I_MUX  1
 
 #define TIMER_F_INPUT_CLK  0
 #define TIMER_G_INPUT_CLK  2

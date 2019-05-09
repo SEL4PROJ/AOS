@@ -22,7 +22,6 @@ typedef struct {
     seL4_Word input_clk;
     seL4_Word enable;
     seL4_Word mode;
-    size_t mux;
 } timeout_info_t;
 
 #define DEFINE_TIMEOUT(timeout) \
@@ -31,7 +30,6 @@ typedef struct {
         .input_clk = timeout##_INPUT_CLK, \
         .enable = timeout##_EN, \
         .mode = timeout##_MODE, \
-        .mux = timeout##_MUX, \
     }
 
 static timeout_info_t timeouts[] = {
@@ -40,9 +38,6 @@ static timeout_info_t timeouts[] = {
     DEFINE_TIMEOUT(TIMER_C),
     DEFINE_TIMEOUT(TIMER_D),
 };
-
-static uint32_t read_mux(volatile meson_timer_reg_t *regs, size_t mux);
-static void write_mux(volatile meson_timer_reg_t *regs, size_t mux, uint32_t value);
 
 void configure_timestamp(volatile meson_timer_reg_t *regs, timestamp_timebase_t timebase)
 {
@@ -77,9 +72,10 @@ void configure_timeout(volatile meson_timer_reg_t *regs, timeout_id_t timer, boo
     timeout_info_t info = timeouts[timer];
 
     /* Disable the timer */
-    uint32_t mux = read_mux(regs, info.mux);
+    uint32_t mux = regs->mux;
     mux &= ~info.enable;
-    write_mux(regs, info.mux, mux);
+    regs->mux = mux;
+    COMPILER_MEMORY_FENCE();
 
     if (!enable) {
         /* If not enabling the timer, just diable and exit */
@@ -90,7 +86,7 @@ void configure_timeout(volatile meson_timer_reg_t *regs, timeout_id_t timer, boo
     write_timeout(regs, timer, timeout);
 
     /* Configure the timer */
-    mux = read_mux(regs, info.mux);
+    mux = regs->mux;
     mux |= info.enable;
 
     if (periodic) {
@@ -105,7 +101,8 @@ void configure_timeout(volatile meson_timer_reg_t *regs, timeout_id_t timer, boo
     /* Set the new clock rate */
     mux |= timebase << info.input_clk;
 
-    write_mux(regs, info.mux, mux);
+    regs->mux = mux;
+    COMPILER_MEMORY_FENCE();
 }
 
 uint16_t read_timeout(volatile meson_timer_reg_t *regs, timeout_id_t timer)
@@ -156,28 +153,4 @@ seL4_Word meson_timeout_irq(timeout_id_t timer)
 {
     assert(timer < ARRAY_SIZE(timeouts));
     return timeouts[timer].irq;
-}
-
-static uint32_t read_mux(volatile meson_timer_reg_t *regs, size_t mux)
-{
-    COMPILER_MEMORY_FENCE();
-    switch (mux) {
-    case 0:
-        return regs->mux;
-    case 1:
-        return regs->mux1;
-    }
-}
-
-static void write_mux(volatile meson_timer_reg_t *regs, size_t mux, uint32_t value)
-{
-    switch (mux) {
-    case 0:
-        regs->mux = value;
-        break;
-    case 1:
-        regs->mux1 = value;
-        break;
-    }
-    COMPILER_MEMORY_FENCE();
 }
