@@ -10,9 +10,15 @@
  * @TAG(DATA61_GPL)
  */
 #define ZF_LOG_LEVEL ZF_LOG_INFO
+#include <assert.h>
 #include <cspace/cspace.h>
+#include <utils/util.h>
+#include <sel4/sel4.h>
 #include "dma.h"
 #include "bootstrap.h"
+#include "frame_table.h"
+
+#define TEST_FRAMES 10
 
 static void test_bf_bit(unsigned long bit)
 {
@@ -108,6 +114,56 @@ static void test_dma(void)
     }
 }
 
+static void test_frame_table(void)
+{
+    /* Test allocation and writing */
+    frame_ref_t frames[TEST_FRAMES] = {};
+    for (int f = 0; f < TEST_FRAMES; f++) {
+        /* Allocate a frame */
+        frames[f] = alloc_frame();
+        assert(frames[f] != NULL_FRAME);
+
+        /* Write to the first and last byte of the frame */
+        unsigned char *vaddr = frame_data(frames[f]);
+        vaddr[0] = f;
+        vaddr[BIT(seL4_PageBits) - 1] = f;
+        flush_frame(frames[f]);
+    }
+
+    /* Check the writes happened */
+    for (int f = 0; f < TEST_FRAMES; f++) {
+        unsigned char *vaddr = frame_data(frames[f]);
+        assert(vaddr[0] == f);
+        assert(vaddr[BIT(seL4_PageBits) - 1] == f);
+    }
+
+    /* Free all the frames */
+    for (int f = 0; f < TEST_FRAMES; f++) {
+        free_frame(frames[f]);
+    }
+
+    /* Ensure that we get the same frames when we try to realloc */
+    frame_ref_t new_frames[TEST_FRAMES] = {};
+    for (int f = 0; f < TEST_FRAMES; f++) {
+        new_frames[f] = alloc_frame();
+        assert(new_frames[f] != NULL_FRAME);
+
+        int o = 0;
+        while (o < TEST_FRAMES) {
+            if (new_frames[f] == frames[o]) {
+                frames[o] = NULL_FRAME;
+                break;
+            }
+            o++;
+        }
+        /* Check that we found one of our previous frames */
+        assert(o != TEST_FRAMES);
+    }
+    for (int f = 0; f < TEST_FRAMES; f++) {
+        free_frame(new_frames[f]);
+    }
+}
+
 void run_tests(cspace_t *cspace)
 {
     /* test the cspace bitfield data structure */
@@ -141,4 +197,8 @@ void run_tests(cspace_t *cspace)
     /* test DMA */
     test_dma();
     ZF_LOGI("DMA test passed!");
+
+    /* test frame table */
+    test_frame_table();
+    ZF_LOGI("Frame table test passed!");
 }
