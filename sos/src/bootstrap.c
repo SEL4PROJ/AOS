@@ -26,11 +26,6 @@
 #include "dma.h"
 #include "vmem_layout.h"
 
-/* top level cspace node size, for the root cnode, in bits, where size = 2^bits */
-#define INITIAL_TASK_CNODE_SIZE_BITS 18u
-#define INITIAL_TASK_CSPACE_SLOTS BIT(CNODE_SLOT_BITS(INITIAL_TASK_CNODE_SIZE_BITS) + \
-                                      CNODE_SLOT_BITS(CNODE_SIZE_BITS))
-
 /* extra cspace info for the initial bootstrapped cspace */
 typedef struct {
     /* track the next free vaddr we have for mapping in frames
@@ -150,7 +145,7 @@ void *bootstrap_cspace_alloc_4k_ut(UNUSED void *cookie, seL4_CPtr *cap)
 
 void bootstrap_cspace_free_4k_ut(UNUSED void *cookie, void *untyped)
 {
-    ut_free(untyped, seL4_PageBits);
+    ut_free(untyped);
 }
 
 void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)

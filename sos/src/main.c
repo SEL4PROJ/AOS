@@ -170,7 +170,7 @@ static ut_t *alloc_retype(seL4_CPtr *cptr, seL4_Word type, size_t size_bits)
     /* allocate a slot to retype the memory for object into */
     *cptr = cspace_alloc_slot(&cspace);
     if (*cptr == seL4_CapNull) {
-        ut_free(ut, size_bits);
+        ut_free(ut);
         ZF_LOGE("Failed to allocate slot");
         return NULL;
     }
@@ -179,7 +179,7 @@ static ut_t *alloc_retype(seL4_CPtr *cptr, seL4_Word type, size_t size_bits)
     seL4_Error err = cspace_untyped_retype(&cspace, ut->cap, *cptr, type, size_bits);
     ZF_LOGE_IFERR(err, "Failed retype untyped");
     if (err != seL4_NoError) {
-        ut_free(ut, size_bits);
+        ut_free(ut);
         cspace_free_slot(&cspace, *cptr);
         return NULL;
     }

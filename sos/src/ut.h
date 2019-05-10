@@ -23,6 +23,8 @@
 #include <utils/util.h>
 #include <cspace/cspace.h>
 
+#include "bootstrap.h"
+
 typedef struct {
     /* the lowest valid address in the region */
     seL4_Word start;
@@ -33,14 +35,15 @@ typedef struct {
 /* a specific untyped */
 typedef struct ut ut_t;
 PACKED struct ut {
-    seL4_CPtr cap;
-    /* 64-bit addresses are only 48 bits, and seL4 user-space is restricted to only
-     * have addresses such that the high bits will always be 0, so we can use spare upper
-     * bits to store flags */
-    uintptr_t next : 48; // pointer to next item in list
-    int valid  : 1; // is this entry valid or not
-    int unused : 15; // spare bits
+    /* The capability space of the initial task is small (~20 bits) so
+     * we can use the remaining bits to store other information */
+    seL4_Untyped cap : 20;
+    unsigned long valid : 1;
+    unsigned long size_bits : 4;
+    unsigned long unused : 39;
+    ut_t *next; // pointer to next item in list
 };
+compile_time_assert("Small cspace bits", INITIAL_TASK_CSPACE_BITS == 20);
 
 /* list of valid object sizes we can allocate */
 #define N_UNTYPED_LISTS (seL4_PageBits - seL4_EndpointBits + 1)
@@ -140,7 +143,7 @@ ut_t *ut_alloc(size_t size_bits, cspace_t *cspace_alloc);
  * @param ut        the ut pointer returned by ut_alloc or ut_alloc_4k_untyped
  * @param size_bits the size to the memory to free, that was used for the allocation.
  */
-void ut_free(ut_t *ut, size_t size_bits);
+void ut_free(ut_t *ut);
 
 /**
  * Allocate 4K of device untyped at a specific physical address. These are only pulled

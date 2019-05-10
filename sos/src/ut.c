@@ -23,14 +23,14 @@ static ut_table_t table;
 
 static void push(ut_t **head, ut_t *new)
 {
-    new->next = (uintptr_t) * head;
+    new->next = *head;
     *head = new;
 }
 
 static ut_t *pop(ut_t **head)
 {
     ut_t *popped = *head;
-    *head = (ut_t *)(uintptr_t)(*head)->next;
+    *head = popped->next;
     return popped;
 }
 
@@ -72,6 +72,7 @@ void ut_add_untyped_range(seL4_Word paddr, seL4_CPtr cap, size_t n, bool device)
         node->valid = 1;
         cap++;
         if (!device) {
+            node->size_bits = seL4_PageBits;
             push(list, node);
             table.n_4k_untyped++;
         }
@@ -164,7 +165,7 @@ ut_t *ut_alloc(size_t size_bits, cspace_t *cspace)
 
         /* check we have enough memory to account for our new uts */
         if (!ensure_new_structures(cspace)) {
-            ut_free(larger, seL4_PageBits);
+            ut_free(larger);
             return NULL;
         }
 
@@ -172,23 +173,26 @@ ut_t *ut_alloc(size_t size_bits, cspace_t *cspace)
         ut_t *new1 = pop(&table.free_structures);
         new1->cap = cspace_alloc_slot(cspace);
         if (new1->cap == seL4_CapNull) {
-            ut_free(larger, seL4_PageBits);
+            ut_free(larger);
             return NULL;
         }
+        new1->size_bits = size_bits;
+
         ut_t *new2 = pop(&table.free_structures);
         new2->cap = cspace_alloc_slot(cspace);
         if (new2->cap == seL4_CapNull) {
             cspace_free_slot(cspace, new1->cap);
-            ut_free(larger, seL4_PageBits);
+            ut_free(larger);
             return NULL;
         }
+        new2->size_bits = size_bits;
 
         seL4_Error err = cspace_untyped_retype(cspace, larger->cap, new1->cap, seL4_UntypedObject, size_bits);
         if (err) {
             cspace_free_slot(cspace, new1->cap);
             cspace_free_slot(cspace, new2->cap);
             push(&table.free_structures, new1);
-            ut_free(larger, seL4_PageBits);
+            ut_free(larger);
             return NULL;
         }
 
@@ -199,7 +203,7 @@ ut_t *ut_alloc(size_t size_bits, cspace_t *cspace)
             cspace_free_slot(cspace, new2->cap);
             push(&table.free_structures, new1);
             push(&table.free_structures, new2);
-            ut_free(larger, seL4_PageBits);
+            ut_free(larger);
             return NULL;
         }
 
@@ -211,14 +215,9 @@ ut_t *ut_alloc(size_t size_bits, cspace_t *cspace)
     return pop(list);
 }
 
-void ut_free(ut_t *node, size_t size_bits)
+void ut_free(ut_t *node)
 {
-    if (size_bits < seL4_EndpointBits || size_bits > seL4_PageBits) {
-        ZF_LOGE("Invalid size bits %zu", size_bits);
-        return;
-    }
-
-    ut_t **list = &table.free_untypeds[SIZE_BITS_TO_INDEX(size_bits)];
+    ut_t **list = &table.free_untypeds[SIZE_BITS_TO_INDEX(node->size_bits)];
     push(list, node);
 }
 

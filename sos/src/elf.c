@@ -121,7 +121,7 @@ static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loader, seL4_CPt
         if (already_mapped) {
             cspace_delete(cspace, loadee_frame);
             cspace_free_slot(cspace, loadee_frame);
-            ut_free(ut, seL4_PageBits);
+            ut_free(ut);
         } else if (err != seL4_NoError) {
             ZF_LOGE("Failed to map into loadee at %p, error %u", (void *) loadee_vaddr, err);
             return -1;

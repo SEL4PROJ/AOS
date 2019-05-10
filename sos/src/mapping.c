@@ -169,7 +169,7 @@ void *sos_map_device(cspace_t *cspace, uintptr_t addr, size_t size)
         seL4_Error err = cspace_untyped_retype(cspace, ut->cap, frame, seL4_ARM_SmallPageObject,
                                                seL4_PageBits);
         if (err != seL4_NoError) {
-            ZF_LOGE("Failed to retype %lx", ut->cap);
+            ZF_LOGE("Failed to retype %lx", (seL4_CPtr)ut->cap);
             cspace_free_slot(cspace, frame);
             return NULL;
         }
