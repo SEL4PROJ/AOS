@@ -28,6 +28,7 @@
 #include "bootstrap.h"
 #include "irq.h"
 #include "network.h"
+#include "frame_table.h"
 #include "drivers/uart.h"
 #include "ut.h"
 #include "vmem_layout.h"
@@ -498,6 +499,7 @@ NORETURN void *main_continued(UNUSED void *arg)
         IRQ_EP_BADGE,
         IRQ_IDENT_BADGE_BITS
     );
+    frame_table_init(&cspace, seL4_CapInitThreadVSpace);
 
     /* run sos initialisation tests */
     run_tests(&cspace);
