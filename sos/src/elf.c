@@ -17,7 +17,7 @@
 #include <assert.h>
 #include <cspace/cspace.h>
 
-#include "vmem_layout.h"
+#include "frame_table.h"
 #include "ut.h"
 #include "mapping.h"
 #include "elfload.h"
@@ -71,8 +71,7 @@ static inline seL4_CapRights_t get_sel4_rights_from_elf(unsigned long permission
  * @return
  *
  */
-static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loader, seL4_CPtr loadee,
-                                    char *src, size_t segment_size,
+static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loadee, char *src, size_t segment_size,
                                     size_t file_size, uintptr_t dst, seL4_CapRights_t permissions)
 {
     assert(file_size <= segment_size);
@@ -82,7 +81,6 @@ static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loader, seL4_CPt
     seL4_Error err = seL4_NoError;
     while (pos < segment_size) {
         uintptr_t loadee_vaddr = (ROUND_DOWN(dst, PAGE_SIZE_4K));
-        uintptr_t loader_vaddr = ROUND_DOWN(SOS_ELF_VMEM + dst, PAGE_SIZE_4K);
 
         /* create slot for the frame to load the data into */
         seL4_CPtr loadee_frame = cspace_alloc_slot(cspace);
@@ -92,14 +90,14 @@ static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loader, seL4_CPt
         }
 
         /* allocate the untyped for the loadees address space */
-        ut_t *ut = ut_alloc_4k_untyped(NULL);
-        if (ut == NULL) {
-            ZF_LOGD("Failed to alloc untyped");
+        frame_ref_t frame = alloc_frame();
+        if (frame == NULL_FRAME) {
+            ZF_LOGD("Failed to alloc frame");
             return -1;
         }
 
-        /* retype it */
-        err = cspace_untyped_retype(cspace, ut->cap, loadee_frame, seL4_ARM_SmallPageObject, seL4_PageBits);
+        /* copy it */
+        err = cspace_copy(cspace, loadee_frame, frame_table_cspace(), frame_page(frame), seL4_AllRights);
         if (err != seL4_NoError) {
             ZF_LOGD("Failed to untyped reypte");
             return -1;
@@ -121,55 +119,52 @@ static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loader, seL4_CPt
         if (already_mapped) {
             cspace_delete(cspace, loadee_frame);
             cspace_free_slot(cspace, loadee_frame);
-            ut_free(ut);
+            free_frame(frame);
         } else if (err != seL4_NoError) {
             ZF_LOGE("Failed to map into loadee at %p, error %u", (void *) loadee_vaddr, err);
             return -1;
-        } else {
-
-            /* allocate a slot to map the frame into the loader address space */
-            seL4_CPtr loader_frame = cspace_alloc_slot(cspace);
-            if (loader_frame == seL4_CapNull) {
-                ZF_LOGD("Failed to alloc slot");
-                return -1;
-            }
-
-            /* copy the frame cap into the loader slot */
-            err = cspace_copy(cspace, loader_frame, cspace, loadee_frame, seL4_AllRights);
-            if (err != seL4_NoError) {
-                ZF_LOGD("Failed to copy frame cap, cptr %lx", loader_frame);
-                return -1;
-            }
-
-            /* map the frame into the loader address space */
-            err = map_frame(cspace, loader_frame, loader, loader_vaddr, seL4_AllRights,
-                            seL4_ARM_Default_VMAttributes);
-            if (err) {
-                ZF_LOGD("Failed to map into loader at %p", (void *) loader_vaddr);
-                return -1;
-            }
         }
 
         /* finally copy the data */
-        size_t nbytes = PAGE_SIZE_4K - (dst % PAGE_SIZE_4K);
+        unsigned char *loader_data = frame_data(frame);
+
+        /* Write any zeroes at the start of the block. */
+        size_t leading_zeroes = dst % PAGE_SIZE_4K;
+        memset(loader_data, 0, leading_zeroes);
+        loader_data += leading_zeroes;
+
+        /* Copy the data from the source. */
+        size_t segment_bytes = PAGE_SIZE_4K - leading_zeroes;
+        size_t file_bytes = MIN(segment_bytes, file_size - pos);
         if (pos < file_size) {
-            memcpy((void *)(loader_vaddr + (dst % PAGE_SIZE_4K)), src, MIN(nbytes, file_size - pos));
+            memcpy(loader_data, src, file_bytes);
+        } else {
+            memset(loader_data, 0, file_bytes);
         }
+        loader_data += file_bytes;
 
-        /* Note that we don't need to explicitly zero frames as seL4 gives us zero'd frames */
+        /* Fill in the end of the frame with zereos */
+        size_t trailing_zeroes = PAGE_SIZE_4K - (leading_zeroes + file_bytes);
+        memset(loader_data, 0, trailing_zeroes);
 
-        /* Flush the caches */
-        seL4_ARM_PageGlobalDirectory_Unify_Instruction(loader, loader_vaddr, loader_vaddr + PAGE_SIZE_4K);
-        seL4_ARM_PageGlobalDirectory_Unify_Instruction(loadee, loadee_vaddr, loadee_vaddr + PAGE_SIZE_4K);
+        /* Flush the frame contents from loader caches out to memory. */
+        flush_frame(frame);
 
-        pos += nbytes;
-        dst += nbytes;
-        src += nbytes;
+        /* Invalidate the caches in the loadee forcing data to be loaded
+         * from memory. */
+        if (seL4_CapRights_get_capAllowWrite(permissions)) {
+            seL4_ARM_Page_Invalidate_Data(loadee_frame, 0, PAGE_SIZE_4K);
+        }
+        seL4_ARM_Page_Unify_Instruction(loadee_frame, 0, PAGE_SIZE_4K);
+
+        pos += segment_bytes;
+        dst += segment_bytes;
+        src += segment_bytes;
     }
     return 0;
 }
 
-int elf_load(cspace_t *cspace, seL4_CPtr loader_vspace, seL4_CPtr loadee_vspace, elf_t *elf_file)
+int elf_load(cspace_t *cspace, seL4_CPtr loadee_vspace, elf_t *elf_file)
 {
 
     int num_headers = elf_getNumProgramHeaders(elf_file);
@@ -189,8 +184,7 @@ int elf_load(cspace_t *cspace, seL4_CPtr loader_vspace, seL4_CPtr loadee_vspace,
 
         /* Copy it across into the vspace. */
         ZF_LOGD(" * Loading segment %p-->%p\n", (void *) vaddr, (void *)(vaddr + segment_size));
-        int err = load_segment_into_vspace(cspace, loader_vspace, loadee_vspace,
-                                           source_addr, segment_size, file_size, vaddr,
+        int err = load_segment_into_vspace(cspace, loadee_vspace, source_addr, segment_size, file_size, vaddr,
                                            get_sel4_rights_from_elf(flags));
         if (err) {
             ZF_LOGE("Elf loading failed!");
