@@ -21,42 +21,16 @@
 /* Maximum number of frames allowed to be held by the frame table. */
 #define MAX_FRAMES 0lu
 
-/*
- * A numeric reference to a particular frame.
- */
-typedef size_t frame_ref_t;
+/* Debugging macro to get the human-readable name of a particular list. */
+#define LIST_NAME(list) LIST_ID_NAME(list->list_id)
 
-typedef enum {
-    NO_LIST = 1,
-    FREE_LIST = 2,
-    ALLOCATED_LIST = 3,
-} list_id_t;
-
-static char *list_names[] = {
-    [FREE_LIST] = "FREE_LIST",
-    [ALLOCATED_LIST] = "ALLOCATED_LIST",
+/* Names of each of the lists. */
+#define LIST_NAME_ENTRY(list) [list] = #list
+char *frame_table_list_names[] = {
+    LIST_NAME_ENTRY(NO_LIST),
+    LIST_NAME_ENTRY(FREE_LIST),
+    LIST_NAME_ENTRY(ALLOCATED_LIST),
 };
-
-#define LIST_NAME(list) (list_names[list->list_id])
-
-/*
- * The frame table is limited to 2^19 entries as that allows for up to
- * 2GiB in 4K frames.
- */
-typedef struct frame frame_t;
-PACKED struct frame {
-    /* Page used to map frame into SOS memory. */
-    seL4_ARM_Page sos_page: 20;
-    /* Index in frame table of previous element in list. */
-    frame_ref_t prev : 19;
-    /* Index in frame table of next element in list. */
-    frame_ref_t next : 19;
-    /* Indicates which list the frame is in. */
-    list_id_t list_id : 2;
-    /* Unused bits */
-    size_t unused : 4;
-};
-compile_time_assert("Small CPtr size", 20 >= INITIAL_TASK_CSPACE_BITS);
 
 /*
  * An entire page of data.
@@ -107,7 +81,6 @@ static struct {
 };
 
 /* Management of frame nodes */
-static frame_t *frame_from_ref(frame_ref_t frame_ref);
 static frame_ref_t ref_from_frame(frame_t *frame);
 
 /* Management of frame list */
@@ -194,7 +167,7 @@ void invalidate_frame(frame_ref_t frame_ref)
     seL4_ARM_Page_Invalidate_Data(frame->sos_page, 0, BIT(seL4_PageBits));
 }
 
-static frame_t *frame_from_ref(frame_ref_t frame_ref)
+frame_t *frame_from_ref(frame_ref_t frame_ref)
 {
     assert(frame_ref != NULL_FRAME);
     assert(frame_ref < frame_table.capacity);

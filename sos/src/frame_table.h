@@ -33,6 +33,41 @@ typedef size_t frame_ref_t;
 #define NULL_FRAME ((frame_ref_t)0)
 
 /*
+ * Identifiers of the different lists in the frame table.
+ *
+ * These are used to ensure that frame table entries move correctly
+ * between the two lists and that those lists maintain a consistently
+ * correct structure.
+ */
+typedef enum {
+    NO_LIST = 1,
+    FREE_LIST = 2,
+    ALLOCATED_LIST = 3,
+} list_id_t;
+
+/* Array of names for each of the lists above. */
+extern char *frame_table_list_names[];
+
+/* Debugging macro to get the human-readable name of a particular list ID. */
+#define LIST_ID_NAME(list_id) (frame_table_list_names[list_id])
+
+/* The actual representation of a frame in the frame table. */
+typedef struct frame frame_t;
+PACKED struct frame {
+    /* Page used to map frame into SOS memory. */
+    seL4_ARM_Page sos_page: 20;
+    /* Index in frame table of previous element in list. */
+    frame_ref_t prev : 19;
+    /* Index in frame table of next element in list. */
+    frame_ref_t next : 19;
+    /* Indicates which list the frame is in. */
+    list_id_t list_id : 2;
+    /* Unused bits */
+    size_t unused : 4;
+};
+compile_time_assert("Small CPtr size", 20 >= INITIAL_TASK_CSPACE_BITS);
+
+/*
  * Initialise frame table.
  *
  * @param cspace  root cspace object from SOS.
@@ -111,3 +146,10 @@ void invalidate_frame(frame_ref_t frame_ref);
  * spaces.
  */
 seL4_ARM_Page frame_page(frame_ref_t frame_ref);
+
+/*
+ * Get the underlying frame reference by a frame ID.
+ *
+ * This should only be used for debugging.
+ */
+frame_t *frame_from_ref(frame_ref_t frame_ref);
