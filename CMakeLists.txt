@@ -16,6 +16,16 @@ include(${KERNEL_HELPERS_PATH})
 # build all libs as static
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
+function(add_app app)
+    set(destination "${CMAKE_BINARY_DIR}/apps/${app}")
+    set_property(GLOBAL APPEND PROPERTY apps_property "$<TARGET_FILE:${app}>")
+    add_custom_command(
+        TARGET ${app} POST_BUILD
+        COMMAND
+            ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${app}> ${destination} BYPRODUCTS ${destination}
+    )
+endfunction()
+
 # add apps
 add_subdirectory(apps/tty_test)
 add_subdirectory(apps/sosh)

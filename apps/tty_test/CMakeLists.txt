@@ -22,4 +22,4 @@ target_link_libraries(tty_test muslc sel4 sosapi)
 # warn about everything
 add_compile_options(-Wall -Werror -W -Wextra)
 
-set_property(GLOBAL APPEND PROPERTY apps_property "$<TARGET_FILE:tty_test>")
+add_app(tty_test)

@@ -16,5 +16,7 @@ TFTPROOT=/var/tftpboot/${USER}
 SERIAL_PORT=/dev/ttyUSB0
 echo "cp ${PWD}/images/sos-image-arm-odroidc2 ${TFTPROOT}"
 cp ${PWD}/images/sos-image-arm-odroidc2 ${TFTPROOT}
+echo "cp ${PWD}/apps/* ${TFTPROOT}"
+cp ${PWD}/apps/* ${TFTPROOT}
 echo "echo \"reset\" >> ${SERIAL_PORT}"
 echo "reset" >> ${SERIAL_PORT}

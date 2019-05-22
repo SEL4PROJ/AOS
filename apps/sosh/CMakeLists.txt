@@ -22,4 +22,4 @@ target_link_libraries(sosh muslc sel4 sosapi utils)
 # warn about everything
 add_compile_options(-Wall -Werror -W -Wextra)
 
-set_property(GLOBAL APPEND PROPERTY apps_property "$<TARGET_FILE:sosh>")
+add_app(sosh)
