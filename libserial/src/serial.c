@@ -19,7 +19,7 @@
 #include <pico_socket.h>
 #include <pico_ipv4.h>
 
-#define AOS18_PORT (26718)
+#define AOS19_PORT (26719)
 #define MAX_PAYLOAD_SIZE  1024
 
 struct serial {
@@ -55,13 +55,13 @@ struct serial *serial_init(void)
         return NULL;
     }
 
-    serial.pico_socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &serial_recv_handler);
+    serial.pico_socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &serial_recv_handler);
     if (!serial.pico_socket) {
         ZF_LOGE("serial connection failed");
         return NULL;
     }
 
-    uint16_t port_be = short_be(AOS18_PORT);
+    uint16_t port_be = short_be(AOS19_PORT);
     int err = pico_socket_bind(serial.pico_socket, &serial.inaddr_any, &port_be);
     if (err) {
         return NULL;
@@ -73,7 +73,7 @@ struct serial *serial_init(void)
 
     err = pico_socket_connect(serial.pico_socket, &serial.peer, serial.port);
     if (err < 0) {
-        ZF_LOGE("serial failed to connect to TCP server");
+        ZF_LOGE("serial failed to connect to UDP server");
         return NULL;
     }
 
