@@ -287,7 +287,9 @@ static frame_t *alloc_fresh_frame(void)
 {
     assert(frame_table.used <= frame_table.capacity);
 #ifdef CONFIG_SOS_FRAME_LIMIT
-    assert(frame_table.capacity <= CONFIG_SOS_FRAME_LIMIT);
+    if (CONFIG_SOS_FRAME_LIMIT != 0ul) {
+        assert(frame_table.capacity <= CONFIG_SOS_FRAME_LIMIT);
+    }
 #endif
 
     if (frame_table.used == frame_table.capacity) {
@@ -326,7 +328,7 @@ static frame_t *alloc_fresh_frame(void)
 static int bump_capacity(void)
 {
 #ifdef CONFIG_SOS_FRAME_LIMIT
-    if (frame_table.capacity == CONFIG_SOS_FRAME_LIMIT) {
+    if (CONFIG_SOS_FRAME_LIMIT != 0ul && frame_table.capacity == CONFIG_SOS_FRAME_LIMIT) {
         /* Reached maximum capacity. */
         return -1;
     }
@@ -343,7 +345,9 @@ static int bump_capacity(void)
     frame_table.capacity = frame_table.byte_length / sizeof(frame_t);
 
 #ifdef CONFIG_SOS_FRAME_LIMIT
-    frame_table.capacity = MIN(CONFIG_SOS_FRAME_LIMIT, frame_table.capacity);
+    if (CONFIG_SOS_FRAME_LIMIT != 0ul) {
+        frame_table.capacity = MIN(CONFIG_SOS_FRAME_LIMIT, frame_table.capacity);
+    }
 #endif
 
     ZF_LOGD("Frame table contains %lu/%lu frames", frame_table.used, frame_table.capacity);
