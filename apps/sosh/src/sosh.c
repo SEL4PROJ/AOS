@@ -35,11 +35,13 @@ static sos_stat_t sbuf;
 
 static size_t sos_debug_print(const void *vData, size_t count)
 {
+#ifdef CONFIG_DEBUG_BUILD
     size_t i;
     const char *realdata = vData;
     for (i = 0; i < count; i++) {
         seL4_DebugPutChar(realdata[i]);
     }
+#endif
     return count;
 }
 

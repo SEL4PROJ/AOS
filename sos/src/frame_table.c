@@ -18,9 +18,6 @@
 #include <stdbool.h>
 #include <utils/util.h>
 
-/* Maximum number of frames allowed to be held by the frame table. */
-#define MAX_FRAMES 0lu
-
 /* Debugging macro to get the human-readable name of a particular list. */
 #define LIST_NAME(list) LIST_ID_NAME(list->list_id)
 
@@ -289,8 +286,8 @@ static void remove_frame(frame_list_t *list, frame_t *frame)
 static frame_t *alloc_fresh_frame(void)
 {
     assert(frame_table.used <= frame_table.capacity);
-#if MAX_FRAMES != 0
-    assert(frame_table.capacity <= MAX_FRAMES);
+#ifdef CONFIG_SOS_FRAME_LIMIT
+    assert(frame_table.capacity <= CONFIG_SOS_FRAME_LIMIT);
 #endif
 
     if (frame_table.used == frame_table.capacity) {
@@ -328,8 +325,8 @@ static frame_t *alloc_fresh_frame(void)
 
 static int bump_capacity(void)
 {
-#if MAX_FRAMES != 0
-    if (frame_table.capacity == MAX_FRAMES) {
+#ifdef CONFIG_SOS_FRAME_LIMIT
+    if (frame_table.capacity == CONFIG_SOS_FRAME_LIMIT) {
         /* Reached maximum capacity. */
         return -1;
     }
@@ -345,8 +342,8 @@ static int bump_capacity(void)
     frame_table.byte_length += BIT(seL4_PageBits);
     frame_table.capacity = frame_table.byte_length / sizeof(frame_t);
 
-#if MAX_FRAMES != 0
-    frame_table.capacity = MIN(MAX_FRAMES, frame_table.capacity);
+#ifdef CONFIG_SOS_FRAME_LIMIT
+    frame_table.capacity = MIN(CONFIG_SOS_FRAME_LIMIT, frame_table.capacity);
 #endif
 
     ZF_LOGD("Frame table contains %lu/%lu frames", frame_table.used, frame_table.capacity);
