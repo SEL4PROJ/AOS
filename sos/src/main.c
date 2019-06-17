@@ -55,6 +55,10 @@
 #define TTY_PRIORITY         (0)
 #define TTY_EP_BADGE         (101)
 
+/* The number of additional stack pages to provide to the initial
+ * process */
+#define INITIAL_PROCESS_EXTRA_STACK_PAGES 4
+
 /*
  * A dummy starting syscall
  */
@@ -295,6 +299,43 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
 
     /* mark the slot as free */
     cspace_free_slot(cspace, local_stack_cptr);
+
+    /* Exend the stack with extra pages */
+    for (int page = 0; page < INITIAL_PROCESS_EXTRA_STACK_PAGES; page++) {
+        stack_bottom -= PAGE_SIZE_4K;
+        frame_ref_t frame = alloc_frame();
+        if (frame == NULL_FRAME) {
+            ZF_LOGE("Couldn't allocate additional stack frame");
+            return 0;
+        }
+
+        /* allocate a slot to duplicate the stack frame cap so we can map it into the application */
+        seL4_CPtr frame_cptr = cspace_alloc_slot(cspace);
+        if (local_stack_cptr == seL4_CapNull) {
+            free_frame(frame);
+            ZF_LOGE("Failed to alloc slot for stack extra stack frame");
+            return 0;
+        }
+
+        /* copy the stack frame cap into the slot */
+        err = cspace_copy(cspace, frame_cptr, cspace, frame_page(frame), seL4_AllRights);
+        if (err != seL4_NoError) {
+            cspace_free_slot(cspace, frame_cptr);
+            free_frame(frame);
+            ZF_LOGE("Failed to copy cap");
+            return 0;
+        }
+
+        err = map_frame(cspace, frame_cptr, tty_test_process.vspace, stack_bottom,
+                        seL4_AllRights, seL4_ARM_Default_VMAttributes);
+        if (err != 0) {
+            cspace_delete(cspace, frame_cptr);
+            cspace_free_slot(cspace, frame_cptr);
+            free_frame(frame);
+            ZF_LOGE("Unable to map extra stack frame for user app");
+            return 0;
+        }
+    }
 
     return stack_top;
 }
