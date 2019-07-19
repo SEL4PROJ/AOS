@@ -17,7 +17,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -u __vsyscall_ptr")
 
 add_executable(sosh EXCLUDE_FROM_ALL src/benchmark.c src/sosh.c)
 target_include_directories(sosh PRIVATE include)
-target_link_libraries(sosh muslc sel4 sosapi utils)
+target_link_libraries(sosh sel4runtime muslc sel4 sosapi utils)
 
 # warn about everything
 add_compile_options(-Wall -Werror -W -Wextra)

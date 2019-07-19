@@ -25,6 +25,9 @@
 #include <elf/elf.h>
 #include <serial/serial.h>
 
+#include <sel4runtime.h>
+#include <sel4runtime/auxv.h>
+
 #include "bootstrap.h"
 #include "irq.h"
 #include "network.h"
@@ -267,6 +270,9 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
 
     index = stack_write(local_stack_top, index, sysinfo);
     index = stack_write(local_stack_top, index, AT_SYSINFO);
+
+    index = stack_write(local_stack_top, index, PROCESS_IPC_BUFFER);
+    index = stack_write(local_stack_top, index, AT_SEL4_IPC_BUFFER_PTR);
 
     /* null terminate the environment pointers */
     index = stack_write(local_stack_top, index, 0);
@@ -575,18 +581,11 @@ int main(void)
 {
     init_muslc();
 
-    /* bootinfo was set as an environment variable in _sel4_start */
-    char *bi_string = getenv("bootinfo");
-    ZF_LOGF_IF(!bi_string, "Could not parse bootinfo from env.");
-
     /* register the location of the unwind_tables -- this is required for
      * backtrace() to work */
     __register_frame(&__eh_frame_start);
 
-    seL4_BootInfo *boot_info;
-    if (sscanf(bi_string, "%p", &boot_info) != 1) {
-        ZF_LOGF("bootinfo environment value '%s' was not valid.", bi_string);
-    }
+    seL4_BootInfo *boot_info = sel4runtime_bootinfo();
 
     debug_print_bootinfo(boot_info);
 

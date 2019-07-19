@@ -41,7 +41,6 @@ MakeCPIO(archive.o "${apps}")
 add_executable(
     sos
     EXCLUDE_FROM_ALL
-    crt/sel4_crt0.S
     src/bootstrap.c
     src/dma.c
     src/elf.c
@@ -66,6 +65,7 @@ target_include_directories(sos PRIVATE "include")
 target_link_libraries(
     sos
     Configuration
+    sel4runtime
     muslc
     sel4
     elf
