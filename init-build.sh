@@ -37,4 +37,9 @@ then
 fi
 
 # Initialize cmake
-cmake -DAARCH64=TRUE -DCMAKE_TOOLCHAIN_FILE=${SCRIPT_PATH}/kernel/gcc.cmake -G Ninja $@ ${SCRIPT_PATH} && cmake ${SCRIPT_PATH} && cmake ${SCRIPT_PATH}
+cmake \
+	-DAARCH64=TRUE \
+	-DCMAKE_TOOLCHAIN_FILE=${SCRIPT_PATH}/kernel/gcc.cmake \
+	-G Ninja \
+	$@ \
+	${SCRIPT_PATH}
