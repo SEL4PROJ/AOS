@@ -15,4 +15,4 @@ project(libsel4cspace C)
 
 add_library(sel4cspace EXCLUDE_FROM_ALL src/cspace.c)
 target_include_directories(sel4cspace PUBLIC include)
-target_link_libraries(sel4cspace Configuration muslc sel4 aos utils)
+target_link_libraries(sel4cspace muslc sel4 aos utils)

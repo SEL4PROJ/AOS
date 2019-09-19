@@ -64,7 +64,7 @@ add_executable(
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(
     sos
-    Configuration
+    sel4_autoconf
     sel4runtime
     muslc
     sel4
@@ -79,6 +79,7 @@ target_link_libraries(
     picotcp_bsd
     nfs
     ethernet
+    sos_Config
 )
 
 set_property(

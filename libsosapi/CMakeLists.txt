@@ -25,7 +25,7 @@ add_library(
     src/vsyscall.c
 )
 target_include_directories(sosapi PUBLIC include)
-target_link_libraries(sosapi Configuration muslc sel4 utils aos)
+target_link_libraries(sosapi muslc sel4 utils aos)
 
 # warn about everything
 add_compile_options(-Wall -Werror -W -Wextra)

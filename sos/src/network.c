@@ -12,6 +12,7 @@
 #include "network.h"
 
 #include <autoconf.h>
+#include <sos/gen_config.h>
 #include <assert.h>
 #include <fcntl.h>
 #include <string.h>

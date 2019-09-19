@@ -9,12 +9,12 @@
  *
  * @TAG(DATA61_GPL)
  */
-#include <autoconf.h>
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
 #include <utils/util.h>
 #include <serial/serial.h>
+#include <sos/gen_config.h>
 #undef PACKED /* picotcp redefines this */
 #include <pico_socket.h>
 #include <pico_ipv4.h>

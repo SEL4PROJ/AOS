@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <utils/util.h>
+#include <sos/gen_config.h>
 
 /* Debugging macro to get the human-readable name of a particular list. */
 #define LIST_NAME(list) LIST_ID_NAME(list->list_id)

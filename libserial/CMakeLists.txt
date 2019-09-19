@@ -15,4 +15,4 @@ project(libserial C)
 
 add_library(serial EXCLUDE_FROM_ALL src/serial.c)
 target_include_directories(serial PUBLIC include)
-target_link_libraries(serial Configuration muslc sel4 picotcp utils)
+target_link_libraries(serial muslc sel4 picotcp utils sos_Config)

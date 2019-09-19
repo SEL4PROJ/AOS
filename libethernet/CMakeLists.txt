@@ -24,4 +24,4 @@ add_library(
     src/uboot/realtek.c
 )
 target_include_directories(ethernet PUBLIC include)
-target_link_libraries(ethernet Configuration muslc sel4 utils clock)
+target_link_libraries(ethernet sel4_autoconf muslc sel4 utils clock)
