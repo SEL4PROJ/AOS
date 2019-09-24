@@ -103,15 +103,15 @@ dma_addr_t sos_dma_malloc(size_t size, int align)
 
 seL4_Error sos_dma_cache_invalidate(uintptr_t addr, size_t size)
 {
-    return seL4_ARM_PageGlobalDirectory_Invalidate_Data(dma.vspace, addr, addr + size);
+    return seL4_ARM_VSpace_Invalidate_Data(dma.vspace, addr, addr + size);
 }
 
 seL4_Error sos_dma_cache_clean(uintptr_t addr, size_t size)
 {
-    return seL4_ARM_PageGlobalDirectory_Clean_Data(dma.vspace, addr, addr + size);
+    return seL4_ARM_VSpace_Clean_Data(dma.vspace, addr, addr + size);
 }
 
 seL4_Error sos_dma_cache_clean_invalidate(uintptr_t addr, size_t size)
 {
-    return seL4_ARM_PageGlobalDirectory_CleanInvalidate_Data(dma.vspace, addr, addr + size);
+    return seL4_ARM_VSpace_CleanInvalidate_Data(dma.vspace, addr, addr + size);
 }
