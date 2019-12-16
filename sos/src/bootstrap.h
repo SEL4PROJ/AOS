@@ -11,6 +11,7 @@
  */
 #pragma once
 
+#include <stdbool.h>
 #include <utils/util.h>
 #include <cspace/cspace.h>
 #include <sel4/sel4.h>
@@ -20,6 +21,17 @@
 #define INITIAL_TASK_CSPACE_BITS (CNODE_SLOT_BITS(INITIAL_TASK_CNODE_SIZE_BITS) + \
                                   CNODE_SLOT_BITS(CNODE_SIZE_BITS))
 #define INITIAL_TASK_CSPACE_SLOTS BIT(INITIAL_TASK_CSPACE_BITS)
+
+/* The total physical memory range that should be considered by SOS.
+ * Device untypeds outside of this range will not be made available. */
+#define PHYSICAL_ADDRESS_LIMIT 0xdfffffffllu
+/* Maximum size of untyped to consider for mapping */
+#define MAX_PHYSICAL_SIZE_BITS 32llu
+
+static inline bool untyped_in_range(seL4_UntypedDesc untyped)
+{
+    return untyped.paddr <= PHYSICAL_ADDRESS_LIMIT && untyped.sizeBits <= MAX_PHYSICAL_SIZE_BITS;
+}
 
 /**
  * Bootstrap the initial tasks cspace and 4k untyped allocator from what seL4 provides to the initial task.

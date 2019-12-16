@@ -49,7 +49,16 @@ static size_t calculate_ut_caps(const seL4_BootInfo *bi, size_t size_bits)
 {
     size_t n_caps = 0;
     for (size_t i = 0; i < bi->untyped.end - bi->untyped.start; i++) {
-        boot_info_avail_bytes[i] = BIT(bi->untypedList[i].sizeBits);
+        if (!untyped_in_range(bi->untypedList[i])) {
+            continue;
+        }
+
+        if (!bi->untypedList[i].isDevice) {
+            boot_info_avail_bytes[i] = BIT(bi->untypedList[i].sizeBits);
+        } else {
+            boot_info_avail_bytes[i] = 0;
+        }
+
         if (bi->untypedList[i].sizeBits >= size_bits) {
             n_caps += BIT(bi->untypedList[i].sizeBits - size_bits);
         } else {
@@ -62,7 +71,10 @@ static size_t calculate_ut_caps(const seL4_BootInfo *bi, size_t size_bits)
 uintptr_t paddr_from_avail_bytes(const seL4_BootInfo *bi, int i, size_t size_bits)
 {
     /* how much has been stolen */
-    size_t taken = BIT(bi->untypedList[i].sizeBits) - boot_info_avail_bytes[i];
+    size_t taken = 0;
+    if (!bi->untypedList[i].isDevice) {
+        taken = BIT(bi->untypedList[i].sizeBits) - boot_info_avail_bytes[i];
+    }
     /* round up to the size we want to allocate from this untyped */
     taken = ROUND_UP(taken, BIT(size_bits));
     return bi->untypedList[i].paddr + taken;
@@ -78,7 +90,7 @@ static seL4_CPtr steal_untyped(const seL4_BootInfo *bi, size_t size_bits, uintpt
 
     ZF_LOGD("looking for untyped %zu in size", size_bits);
     for (size_t i = 0; i < bi->untyped.end - bi->untyped.start; i++) {
-        if (boot_info_avail_bytes[i] >= BIT(size_bits)) {
+        if (untyped_in_range(bi->untypedList[i]) && boot_info_avail_bytes[i] >= BIT(size_bits)) {
             if (paddr) {
                 *paddr = paddr_from_avail_bytes(bi, i, size_bits);
             }
@@ -94,13 +106,18 @@ static seL4_CPtr steal_untyped(const seL4_BootInfo *bi, size_t size_bits, uintpt
 static ut_region_t find_memory_bounds(const seL4_BootInfo *bi)
 {
     ut_region_t memory = {
-        .start = UINTPTR_MAX, /* highest possible physical address */
+        .start = PHYSICAL_ADDRESS_LIMIT, /* highest possible physical address */
         .end = 0 /* lowest possible physical address */
     };
 
     for (size_t i = 0; i <  bi->untyped.end - bi->untyped.start; i++) {
+        if (!untyped_in_range(bi->untypedList[i])) {
+            continue;
+        }
+
         memory.start = MIN(memory.start, bi->untypedList[i].paddr);
         seL4_Word end = bi->untypedList[i].paddr + BIT(bi->untypedList[i].sizeBits);
+        ZF_LOGD("Found untyped %p <--> %p (%s, %u bits)", (void*)bi->untypedList[i].paddr, (void*)end, (bi->untypedList[i].isDevice) ? "device" : "non-device", bi->untypedList[i].sizeBits);
         memory.end = MAX(end, memory.end);
     }
 
@@ -350,9 +367,17 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
 
     /* create all the 4K untypeds and build the ut table, from the first available empty slot */
     for (size_t i = 0; i < bi->untyped.end - bi->untyped.start; i++) {
-        size_t n_caps = boot_info_avail_bytes[i] / PAGE_SIZE_4K;
+        if (!untyped_in_range(bi->untypedList[i])) {
+            continue;
+        }
+
+        size_t n_caps = BIT(bi->untypedList[i].sizeBits) / PAGE_SIZE_4K;
+        if (!bi->untypedList[i].isDevice) {
+            n_caps = boot_info_avail_bytes[i] / PAGE_SIZE_4K;
+        }
         seL4_Word paddr = paddr_from_avail_bytes(bi, i, seL4_PageBits);
         if (n_caps > 0) {
+            ZF_LOGD("Creating %zu 4KiB untyped capabilities at %p", n_caps, (void *)paddr);
             ut_add_untyped_range(paddr, first_free_slot, n_caps, bi->untypedList[i].isDevice);
         }
         while (n_caps > 0) {
