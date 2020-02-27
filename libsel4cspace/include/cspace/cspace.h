@@ -316,6 +316,7 @@ static inline seL4_Error cspace_revoke(cspace_t *cspace, seL4_CPtr cptr)
 
 }
 
+#ifndef CONFIG_KERNEL_MCS
 /**
  * Move the callers reply capability from the implicit slot in the current TCB's CNode to a slot in the target cspace.
  * The reply capability can then be invoked with seL4_Send to send a reply message, at which point the slot
@@ -332,6 +333,7 @@ static inline seL4_Error cspace_save_reply_cap(cspace_t *cspace, seL4_CPtr cptr)
 {
     return seL4_CNode_SaveCaller(cspace->root_cnode, cptr, seL4_WordBits);
 }
+#endif
 
 /**
  * Create an IRQ handler capability in a cptr in the specified cspace.
