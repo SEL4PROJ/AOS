@@ -61,6 +61,7 @@ add_executable(
     archive.o
     src/sos.lds
     src/utils.c
+    src/threads.c
 )
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(

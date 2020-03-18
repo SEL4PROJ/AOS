@@ -40,6 +40,7 @@
 #include "syscalls.h"
 #include "tests.h"
 #include "utils.h"
+#include "threads.h"
 
 #include <aos/vsyscall.h>
 
@@ -609,6 +610,11 @@ NORETURN void *main_continued(UNUSED void *arg)
     ZF_LOGF_IF(!success, "Failed to start first process");
 
     printf("\nSOS entering syscall loop\n");
+#ifdef CONFIG_KERNEL_MCS
+    init_threads(ipc_ep, sched_ctrl_start, sched_ctrl_end);
+#else
+    init_threads(ipc_ep);
+#endif
     syscall_loop(ipc_ep);
 }
 /*
