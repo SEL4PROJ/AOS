@@ -39,6 +39,7 @@
 #include "elfload.h"
 #include "syscalls.h"
 #include "tests.h"
+#include "utils.h"
 
 #include <aos/vsyscall.h>
 
@@ -76,7 +77,7 @@ extern char __eh_frame_start[];
 extern void (__register_frame)(void *);
 
 /* root tasks cspace */
-static cspace_t cspace;
+cspace_t cspace;
 
 #ifdef CONFIG_KERNEL_MCS
 static seL4_CPtr sched_ctrl_start;
@@ -103,36 +104,6 @@ static struct {
     ut_t *stack_ut;
     seL4_CPtr stack;
 } tty_test_process;
-
-/* helper to allocate a ut + cslot, and retype the ut into the cslot */
-static ut_t *alloc_retype(seL4_CPtr *cptr, seL4_Word type, size_t size_bits)
-{
-    /* Allocate the object */
-    ut_t *ut = ut_alloc(size_bits, &cspace);
-    if (ut == NULL) {
-        ZF_LOGE("No memory for object of size %zu", size_bits);
-        return NULL;
-    }
-
-    /* allocate a slot to retype the memory for object into */
-    *cptr = cspace_alloc_slot(&cspace);
-    if (*cptr == seL4_CapNull) {
-        ut_free(ut);
-        ZF_LOGE("Failed to allocate slot");
-        return NULL;
-    }
-
-    /* now do the retype */
-    seL4_Error err = cspace_untyped_retype(&cspace, ut->cap, *cptr, type, size_bits);
-    ZF_LOGE_IFERR(err, "Failed retype untyped");
-    if (err != seL4_NoError) {
-        ut_free(ut);
-        cspace_free_slot(&cspace, *cptr);
-        return NULL;
-    }
-
-    return ut;
-}
 
 
 void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args, seL4_CPtr reply)

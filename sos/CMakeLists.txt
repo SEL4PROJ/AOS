@@ -60,6 +60,7 @@ add_executable(
     src/drivers/uart.c
     archive.o
     src/sos.lds
+    src/utils.c
 )
 target_include_directories(sos PRIVATE "include")
 target_link_libraries(
