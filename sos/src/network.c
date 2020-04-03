@@ -60,9 +60,15 @@
 #define NETWORK_IRQ (40)
 #define WATCHDOG_TIMEOUT 1000
 
+#define DHCP_STATUS_WAIT        0
+#define DHCP_STATUS_FINISHED    1
+#define DHCP_STATUS_ERR         2
+
 static struct pico_device pico_dev;
 static struct nfs_context *nfs = NULL;
 static void nfs_mount_cb(int status, struct nfs_context *nfs, void *data, void *private_data);
+
+static int dhcp_status = DHCP_STATUS_WAIT;
 
 static int pico_eth_send(UNUSED struct pico_device *dev, void *input_buf, int len)
 {
@@ -148,7 +154,7 @@ static int network_irq(
 {
     ethif_irq();
     seL4_IRQHandler_Ack(irq_handler);
-    network_tick_internal();
+    pico_bsd_stack_tick();
     return 0;
 }
 
@@ -177,7 +183,29 @@ static void init_irq(
     seL4_IRQHandler_Ack(irq_handler);
 }
 
-void network_init(cspace_t *cspace, void *timer_vaddr)
+void dhcp_callback(void *cli, int code)
+{
+    if (code != PICO_DHCP_SUCCESS) {
+        dhcp_status = DHCP_STATUS_ERR;
+        ZF_LOGE("DHCP negociation failed with code %d", code);
+        return;
+    }
+    /* struct pico_ip4 ipaddr = pico_dhcp_get_address(cli); */
+    struct pico_ip4 netmask = pico_dhcp_get_netmask(cli);
+    struct pico_ip4 gateway = pico_dhcp_get_gateway(cli);
+
+    char ipstr[30];
+    /* pico_ipv4_to_string(ipstr, ipaddr.addr); */
+    /* ZF_LOGD("[DHCP] ip: %s", ipstr); */
+    pico_ipv4_to_string(ipstr, netmask.addr);
+    printf("DHCP client: gateway %s\n", ipstr);
+    pico_ipv4_to_string(ipstr, gateway.addr);
+    printf("DHCP client: netmask %s\n", ipstr);
+
+    dhcp_status = DHCP_STATUS_FINISHED;
+}
+
+void network_init(cspace_t *cspace, void *timer_vaddr, seL4_CPtr irq_ntfn)
 {
     int error;
     ZF_LOGI("\nInitialising network...\n\n");
@@ -188,9 +216,6 @@ void network_init(cspace_t *cspace, void *timer_vaddr)
     /* set up the network tick irq (watchdog timer) */
     init_irq(WATCHDOG_IRQ, true, network_tick);
 
-    /* Configure a watchdog IRQ for 1 millisecond from now. Whenever the watchdog is reset
-     * using watchdog_reset(), we will get another IRQ 1ms later */
-    watchdog_init(timer_vaddr, WATCHDOG_TIMEOUT);
 
     /* Initialise ethernet interface first, because we won't bother initialising
      * picotcp if the interface fails to be brought up */
@@ -215,12 +240,6 @@ void network_init(cspace_t *cspace, void *timer_vaddr)
     error = ethif_init(eth_base_vaddr, mac_addr, &ethif_dma_ops, &raw_recv_callback);
     ZF_LOGF_IF(error != 0, "Failed to initialise ethernet interface");
 
-    /* Extract IP from .config */
-    struct pico_ip4 netmask;
-    struct pico_ip4 ipaddr;
-    struct pico_ip4 gateway;
-    struct pico_ip4 zero;
-
     pico_bsd_init();
     pico_stack_init();
 
@@ -234,13 +253,27 @@ void network_init(cspace_t *cspace, void *timer_vaddr)
     error = pico_device_init(&pico_dev, "sos picotcp", mac_addr);
     ZF_LOGF_IF(error, "Failed to init picotcp");
 
-    pico_string_to_ipv4(CONFIG_SOS_GATEWAY, &gateway.addr);
-    pico_string_to_ipv4(CONFIG_SOS_NETMASK, &netmask.addr);
-    pico_string_to_ipv4(CONFIG_SOS_IP, &ipaddr.addr);
-    pico_string_to_ipv4("0.0.0.0", &zero.addr);
+    /* Start DHCP negotiation */
+    uint32_t dhcp_xid;
+    error = pico_dhcp_initiate_negotiation(&pico_dev, dhcp_callback, &dhcp_xid);
+    ZF_LOGF_IF(error != 0, "Failed to initialise DHCP negotiation");
 
-    pico_ipv4_link_add(&pico_dev, ipaddr, netmask);
-    pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
+    /* handle all interrupts until dhcp negotiation finished
+     * this is needed so we can receive and handle dhcp response */
+    do {
+        seL4_Word badge;
+        seL4_Wait(irq_ntfn, &badge);
+        sos_handle_irq_notification(&badge);
+        if (dhcp_status == DHCP_STATUS_ERR) {
+            ZF_LOGD("restarting dhcp negotiation");
+            error = pico_dhcp_initiate_negotiation(&pico_dev, dhcp_callback, &dhcp_xid);
+            ZF_LOGF_IF(error != 0, "Failed to initialise DHCP negotiation");
+        }
+    } while (dhcp_status != DHCP_STATUS_FINISHED);
+
+    /* Configure a watchdog IRQ for 1 millisecond from now. Whenever the watchdog is reset
+     * using watchdog_reset(), we will get another IRQ 1ms later */
+    watchdog_init(timer_vaddr, WATCHDOG_TIMEOUT);
 
     nfs = nfs_init_context();
     ZF_LOGF_IF(nfs == NULL, "Failed to init NFS context");

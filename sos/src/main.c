@@ -596,7 +596,7 @@ NORETURN void *main_continued(UNUSED void *arg)
 
     /* Initialise the network hardware. */
     printf("Network init\n");
-    network_init(&cspace, timer_vaddr);
+    network_init(&cspace, timer_vaddr, ntfn);
 
     /* Initialises the timer */
     printf("Timer init\n");

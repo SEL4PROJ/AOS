@@ -24,4 +24,4 @@
  *                       using the SoC's watchdog timer (which is not used by your timer driver
  *                       and has a completely different programming model!)
  */
-void network_init(cspace_t *cspace, void *timer_vaddr);
+void network_init(cspace_t *cspace, void *timer_vaddr, seL4_CPtr irq_ntfn);
