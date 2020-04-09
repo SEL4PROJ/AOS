@@ -13,7 +13,7 @@ project(sos C)
 
 set(configure_string "")
 
-config_string(SosNFSDir SOS_NFS_DIR "NFS directory" DEFAULT "/var/tftpboot/$ENV{USER}/")
+config_string(SosNFSDir SOS_NFS_DIR "NFS directory" DEFAULT "/export/odroid")
 
 config_string(SosGateway SOS_GATEWAY "Gateway IP address" DEFAULT "192.168.168.1")
 

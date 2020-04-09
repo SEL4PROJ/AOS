@@ -66,9 +66,11 @@
 
 static struct pico_device pico_dev;
 static struct nfs_context *nfs = NULL;
-static void nfs_mount_cb(int status, struct nfs_context *nfs, void *data, void *private_data);
-
 static int dhcp_status = DHCP_STATUS_WAIT;
+static char nfs_dir_buf[PATH_MAX];
+static uint8_t ip_octet;
+
+static void nfs_mount_cb(int status, struct nfs_context *nfs, void *data, void *private_data);
 
 static int pico_eth_send(UNUSED struct pico_device *dev, void *input_buf, int len)
 {
@@ -190,13 +192,14 @@ void dhcp_callback(void *cli, int code)
         ZF_LOGE("DHCP negociation failed with code %d", code);
         return;
     }
-    /* struct pico_ip4 ipaddr = pico_dhcp_get_address(cli); */
+    struct pico_ip4 ipaddr = pico_dhcp_get_address(cli);
     struct pico_ip4 netmask = pico_dhcp_get_netmask(cli);
     struct pico_ip4 gateway = pico_dhcp_get_gateway(cli);
 
     char ipstr[30];
     /* pico_ipv4_to_string(ipstr, ipaddr.addr); */
     /* ZF_LOGD("[DHCP] ip: %s", ipstr); */
+    ip_octet = ((uint8_t *) &ipaddr.addr)[3];
     pico_ipv4_to_string(ipstr, netmask.addr);
     printf("DHCP client: gateway %s\n", ipstr);
     pico_ipv4_to_string(ipstr, gateway.addr);
@@ -279,7 +282,8 @@ void network_init(cspace_t *cspace, void *timer_vaddr, seL4_CPtr irq_ntfn)
     ZF_LOGF_IF(nfs == NULL, "Failed to init NFS context");
 
     nfs_set_debug(nfs, 10);
-    int ret = nfs_mount_async(nfs, CONFIG_SOS_GATEWAY, SOS_NFS_DIR, nfs_mount_cb, NULL);
+    sprintf(nfs_dir_buf, "%s-%d-root", SOS_NFS_DIR, ip_octet);
+    int ret = nfs_mount_async(nfs, CONFIG_SOS_GATEWAY, nfs_dir_buf, nfs_mount_cb, NULL);
     ZF_LOGF_IF(ret != 0, "NFS Mount failed: %s", nfs_get_error(nfs));
 }
 
@@ -290,5 +294,5 @@ void nfs_mount_cb(int status, UNUSED struct nfs_context *nfs, void *data,
         ZF_LOGF("mount/mnt call failed with \"%s\"\n", (char *)data);
     }
 
-    printf("Mounted nfs dir %s\n", SOS_NFS_DIR);
+    printf("Mounted nfs dir %s\n", nfs_dir_buf);
 }

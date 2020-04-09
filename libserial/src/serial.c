@@ -19,7 +19,7 @@
 #include <pico_socket.h>
 #include <pico_ipv4.h>
 
-#define AOS19_PORT (26719)
+#define AOS_BASEPORT (26700)
 #define MAX_PAYLOAD_SIZE  1024
 
 struct serial {
@@ -61,15 +61,22 @@ struct serial *serial_init(void)
         return NULL;
     }
 
-    uint16_t port_be = short_be(AOS19_PORT);
+    struct pico_ip4 gateway;
+    pico_string_to_ipv4(CONFIG_SOS_GATEWAY, &gateway.addr);
+
+    struct pico_ip4 *src = pico_ipv4_source_find(&gateway);
+    unsigned char *octects = (unsigned char *) &src->addr;
+    printf("libserial using udp port %d\n", AOS_BASEPORT + octects[3]);
+
+    /* Configure peer/port for sendto */
+    pico_string_to_ipv4(CONFIG_SOS_GATEWAY, &serial.peer);
+    uint16_t port_be = short_be(AOS_BASEPORT + octects[3]);
+    serial.port = port_be;
+
     int err = pico_socket_bind(serial.pico_socket, &serial.inaddr_any, &port_be);
     if (err) {
         return NULL;
     }
-
-    /* Configure peer/port for sendto */
-    pico_string_to_ipv4(CONFIG_SOS_GATEWAY, &serial.peer);
-    serial.port = port_be;
 
     err = pico_socket_connect(serial.pico_socket, &serial.peer, serial.port);
     if (err < 0) {
