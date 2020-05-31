@@ -12,11 +12,13 @@
 #
 set -e
 
-TFTPROOT=/var/tftpboot/${USER}
-SERIAL_PORT=/dev/ttyUSB0
-echo "cp ${PWD}/images/sos-image-arm-odroidc2 ${TFTPROOT}"
-cp ${PWD}/images/sos-image-arm-odroidc2 ${TFTPROOT}
-echo "cp ${PWD}/apps/* ${TFTPROOT}"
-cp ${PWD}/apps/* ${TFTPROOT}
-echo "echo \"reset\" >> ${SERIAL_PORT}"
-echo "reset" >> ${SERIAL_PORT}
+PATH="${0%/*}:$PATH"
+
+echo odroid upload-boot "${PWD}/images/sos-image-arm-odroidc2"
+odroid upload-boot "${PWD}/images/sos-image-arm-odroidc2"
+
+echo odroid upload "${PWD}/apps/*"
+odroid upload "${PWD}/apps/"*
+
+echo odroid reset
+odroid reset

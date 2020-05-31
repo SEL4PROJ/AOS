@@ -59,6 +59,10 @@ main () {
 		"${DEST_REPO}/reset.sh"
 	ln \
 		-srf \
+		"projects/aos/odroid" \
+		"${DEST_REPO}/odroid"
+	ln \
+		-srf \
 		"projects/aos/init-build.sh" \
 		"${DEST_REPO}/init-build.sh"
 	ln \

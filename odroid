@@ -1,0 +1,221 @@
+#!/bin/sh
+
+# Client for the webserver
+#
+# File management and control requests require `curl` to be installed.
+#
+# Connecting to the TTY or Serial interfaces requires a version of
+# `websocat` build with SSL support. (see
+# https://github.com/vi/websocat)
+#
+# This can be installed with cargo using:
+#
+#     cargo install \
+#         --git https://github.com/vi/websocat.git \
+#         --features ssl
+
+AUTH_TOKEN_FILE="$HOME/.aos_auth_token"
+AOS_DOMAIN="aos.cse.unsw.edu.au"
+AOS_HTTP_URL="https://${AOS_DOMAIN}"
+AOS_WS_URL="wss://${AOS_DOMAIN}"
+
+if [ ! -e "${AUTH_TOKEN_FILE}" ]; then
+	touch "${AUTH_TOKEN_FILE}"
+	chmod 600 "${AUTH_TOKEN_FILE}"
+	printf "Enter UNSW zID: "
+	read zid;
+	if ! curl -f -s -u "${zid}" "${AOS_HTTP_URL}/token" \
+		> "${AUTH_TOKEN_FILE}"; then
+		rm "${AUTH_TOKEN_FILE}"
+		echo "Failed to authenticate"
+		exit 1
+	fi
+fi
+
+COMMAND_NAME="$0"
+
+BEARER_HEADER=""
+
+http_query () {
+	path=$1; shift
+	curl \
+		-H "Authorization: Bearer $(cat "${AUTH_TOKEN_FILE}")" \
+		"${AOS_HTTP_URL}/${path}" \
+		"$@"
+	echo
+}
+
+ws_stream () {
+	path=$1; shift
+	websocat \
+		--binary -E \
+		--ping-interval 5 \
+		--ping-timeout 20 \
+		"$@" \
+		-H "Authorization: Bearer $(cat "${AUTH_TOKEN_FILE}")" \
+		-- - "${AOS_WS_URL}/${path}"
+}
+
+# Download the boot image
+download_boot () {
+	if [ "$#" -lt 1 ]; then
+		image_name="sos-image-arm-odroidc2"
+	else
+		image_name="$1"
+	fi
+
+	http_query "boot-file" -o "$image_name"
+}
+
+# Upload a new boot image
+upload_boot () {
+	http_query "boot-file" -T "$1"
+}
+
+# Delete the boot image
+delete_boot () {
+	http_query "boot-file" -X DELETE
+}
+
+# List the NFS directory
+list () {
+	http_query "nfs" -s | column -s '	' -t
+}
+
+# Download files from the NFS directory
+download () {
+	while [ "$#" -gt 0 ]; do
+		file=$1; shift
+		mkdir -p "$(dirname "$file")"
+		http_query "nfs/$(basename "$file")" -o "$file"
+	done
+}
+
+# Upload files to the NFS directory
+upload () {
+	while [ "$#" -gt 0 ]; do
+		file=$1; shift
+		http_query "nfs/$(basename "$file")" -T "$file"
+	done
+}
+
+# Delete files from the NFS directory
+delete () {
+	while [ "$#" -gt 0 ]; do
+		file=$1; shift
+		http_query "nfs/$(basename "$file")" -X DELETE
+	done
+}
+
+# Restart the ODroidC2
+reset () {
+	http_query "reset" -X POST
+}
+
+# Request to be allocated a different ODroid
+#
+# Only do this after talking to tutors or course staff
+reallocate () {
+	http_query "reallocate" -X POST
+}
+
+# Reset the Das-UBoot configuration
+reconfigure () {
+	http_query "reconfigure" -X POST
+}
+
+# Get the status of the odroid you've been assigned
+odroid_status () {
+	http_query "status" -s
+}
+
+# Connect to the hardware UART stream
+tty () {
+	ws_stream tty "$@"
+}
+
+# Conntect to the UDP "serial" connection
+serial () {
+	ws_stream serial "$@"
+}
+
+show_help () {
+	cat <<- __end_help
+	ODroidC2 multiplexer client
+
+	Tool to manage assigned ODroidC2 for AOS course
+
+	Usage: ${COMMAND_NAME} <command>
+
+	Commands:
+
+	download-boot <file>
+	    Download the current boot image.
+
+	upload-boot <file>
+	    Upload a new boot image.
+
+	rm-boot
+	    Remove the current boot image.
+
+	ls
+	    List all of the files in the NFS directory.
+
+	download <file>...
+	    Download one or more files from the NFS directoy.
+
+	upload <file>...
+	    Upload one or more files to the NFS directoy.
+
+	rm <file>...
+	    Remove one or more files from the NFS directory.
+
+	reset, restart
+	    Send the 'reset' command to the ODroidC2. This will cause U-Boot
+	    or seL4 to reset the device.
+
+	reallocate
+	    Request allocation of a different ODroidC2. Only use this if you
+	    are having issues with your assigned ODroidC2 and have spoken to
+	    a tutor or course staff.
+
+	reconfigure
+	    Reload the configuration for the U-Boot bootloader.
+
+	status
+	    Get the status and identifying details of the assigned ODroidC2.
+
+	tty
+	    Connect to the ODroidC2's UART output (where
+	    \`seL4_DebugPutChar\` prints). This is read-only.
+
+	serial
+	    Connect to assigned ODroidC2's UDP serial interface
+	    interactively.
+
+	help, --help, -h
+	    Show this help message.
+	__end_help
+}
+
+action=$1; shift;
+
+case "${action}" in
+	"download-boot") download_boot "$@";;
+	"upload-boot") upload_boot "$@";;
+	"rm-boot") delete_boot;;
+	"ls") list;;
+	"download") download "$@";;
+	"upload") upload "$@";;
+	"rm") delete "$@";;
+	"reset") reset;;
+	"restart") reset;;
+	"reallocate") reallocate;;
+	"reconfigure") reconfigure;;
+	"status") odroid_status;;
+	"tty") tty "$@";;
+	"serial") serial "$@";;
+	"help") show_help;;
+	"--help") show_help;;
+	"-h") show_help;;
+esac
