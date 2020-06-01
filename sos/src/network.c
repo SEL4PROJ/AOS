@@ -201,9 +201,9 @@ void dhcp_callback(void *cli, int code)
     /* ZF_LOGD("[DHCP] ip: %s", ipstr); */
     ip_octet = ((uint8_t *) &ipaddr.addr)[3];
     pico_ipv4_to_string(ipstr, netmask.addr);
-    printf("DHCP client: gateway %s\n", ipstr);
-    pico_ipv4_to_string(ipstr, gateway.addr);
     printf("DHCP client: netmask %s\n", ipstr);
+    pico_ipv4_to_string(ipstr, gateway.addr);
+    printf("DHCP client: gateway %s\n", ipstr);
 
     dhcp_status = DHCP_STATUS_FINISHED;
 }
