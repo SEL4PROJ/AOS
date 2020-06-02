@@ -42,7 +42,7 @@ long sys_writev(va_list ap)
     int iovcnt = va_arg(ap, int);
 
     long long sum = 0;
-    ssize_t ret = 0;
+    long ret = 0;
 
     /* The iovcnt argument is valid if greater than 0 and less than or equal to IOV_MAX. */
     if (iovcnt <= 0 || iovcnt > IOV_MAX) {
@@ -66,11 +66,22 @@ long sys_writev(va_list ap)
     /* Write the buffer to console if the fd is for stdout or stderr. */
     if (fildes == STDOUT_FD || fildes == STDERR_FD) {
         for (int i = 0; i < iovcnt; i++) {
-            ret += sos_write(iov[i].iov_base, iov[i].iov_len);
+            size_t nr = sos_write(iov[i].iov_base, iov[i].iov_len);
+
+            ret += nr;
+            if (nr != iov[i].iov_len) break;
         }
     } else {
         for (int i = 0; i < iovcnt; i++) {
-            ret += sos_sys_write(fildes, iov[i].iov_base, iov[i].iov_len);
+            int nr = sos_sys_write(fildes, iov[i].iov_base, iov[i].iov_len);
+
+            if (nr < 0) {
+                if (!ret) ret = nr;
+                break;
+            }
+
+            ret += nr;
+            if (nr != iov[i].iov_len) break;
         }
     }
 
@@ -83,13 +94,21 @@ long sys_readv(va_list ap)
     struct iovec *iov = va_arg(ap, struct iovec *);
     int iovcnt = va_arg(ap, int);
     int i;
-    long read;
+    long ret = 0;
 
-    read = 0;
     for (i = 0; i < iovcnt; i++) {
-        read += sos_sys_read(fd, iov[i].iov_base, iov[i].iov_len);
+        int nr = sos_sys_read(fd, iov[i].iov_base, iov[i].iov_len);
+
+        if (nr < 0) {
+            if (!ret) ret = nr;
+            break;
+        }
+
+        ret += nr;
+        if (nr != iov[i].iov_len) break;
     }
-    return read;
+
+    return ret;
 }
 
 long sys_read(va_list ap)
