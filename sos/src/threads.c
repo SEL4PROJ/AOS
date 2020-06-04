@@ -26,26 +26,17 @@
 
 __thread sos_thread_t *current_thread = NULL;
 
-#ifdef CONFIG_KERNEL_MCS
 static seL4_CPtr sched_ctrl_start;
 static seL4_CPtr sched_ctrl_end;
-#endif
 
 static seL4_CPtr ipc_ep;
 
-#ifdef CONFIG_KERNEL_MCS
 void init_threads(seL4_CPtr ep, seL4_CPtr sched_ctrl_start_, seL4_CPtr sched_ctrl_end_)
 {
     ipc_ep = ep;
     sched_ctrl_start = sched_ctrl_start_;
     sched_ctrl_end = sched_ctrl_end_;
 }
-#else
-void init_threads(seL4_CPtr ep)
-{
-    ipc_ep = ep;
-}
-#endif
 
 
 /* leaking a lot of memory if failed! */
@@ -153,7 +144,6 @@ sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, 
         return NULL;
     }
 
-#ifdef CONFIG_KERNEL_MCS
     /* Configure the TCB */
     err = seL4_TCB_Configure(new_thread->tcb,
                              cspace.root_cnode, seL4_NilData,
@@ -198,25 +188,6 @@ sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, 
         ZF_LOGE("Unable to set scheduling params");
         return NULL;
     }
-#else
-    /* Configure the TCB */
-    err = seL4_TCB_Configure(new_thread->tcb, new_thread->user_ep,
-                             cspace.root_cnode, seL4_NilData,
-                             seL4_CapInitThreadVSpace, seL4_NilData, curr_ipc_buf,
-                             new_thread->ipc_buffer);
-    if (err != seL4_NoError) {
-        ZF_LOGE("Unable to configure new TCB");
-        return NULL;
-    }
-
-    /* Set the priority */
-    err = seL4_TCB_SetPriority(new_thread->tcb, seL4_CapInitThreadTCB,
-                               SOS_THREAD_PRIORITY);
-    if (err != seL4_NoError) {
-        ZF_LOGE("Unable to set priority of new TCB");
-        return NULL;
-    }
-#endif
 
     /* Provide a name for the thread -- Helpful for debugging */
     NAME_THREAD(new_thread->tcb, "second sos thread");

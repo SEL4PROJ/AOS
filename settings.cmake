@@ -54,6 +54,9 @@ set(KernelNumDomains 1 CACHE STRING "")
 # just 1 core
 set(KernelMaxNumNodes 1 CACHE STRING "")
 
+# Enable MCS
+set(KernelIsMCS ON CACHE BOOL "" FORCE)
+
 # Elfloader settings that correspond to how Data61 sets its boards up.
 ApplyData61ElfLoaderSettings(${KernelARMPlatform} ${KernelArmSel4Arch})
 

@@ -80,10 +80,8 @@ extern void (__register_frame)(void *);
 /* root tasks cspace */
 cspace_t cspace;
 
-#ifdef CONFIG_KERNEL_MCS
 static seL4_CPtr sched_ctrl_start;
 static seL4_CPtr sched_ctrl_end;
-#endif
 
 /* the one process we start */
 static struct {
@@ -95,10 +93,8 @@ static struct {
     ut_t *ipc_buffer_ut;
     seL4_CPtr ipc_buffer;
 
-#ifdef CONFIG_KERNEL_MCS
     ut_t *sched_context_ut;
     seL4_CPtr sched_context;
-#endif
 
     cspace_t cspace;
 
@@ -125,11 +121,9 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args, seL4_CPtr reply
         /* Send the reply to the saved reply capability. */
         seL4_Send(reply, reply_msg);
         /* in MCS kernel, reply object is meant to be reused rather than freed */
-#ifndef CONFIG_KERNEL_MCS
         /* Free the slot we allocated for the reply - it is now empty, as the reply
          * capability was consumed by the send. */
         cspace_free_slot(&cspace, reply);
-#endif
         break;
 
     default:
@@ -141,23 +135,17 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args, seL4_CPtr reply
 NORETURN void syscall_loop(seL4_CPtr ep)
 {
     seL4_CPtr reply;
-#ifdef CONFIG_KERNEL_MCS
     /* Create reply object */
     ut_t *reply_ut = alloc_retype(&reply, seL4_ReplyObject, seL4_ReplyBits);
     if (reply_ut == NULL) {
         ZF_LOGF("Failed to alloc reply object ut");
     }
-#endif
 
     while (1) {
         seL4_Word badge = 0;
         /* Block on ep, waiting for an IPC sent over ep, or
          * a notification from our bound notification object */
-#ifdef CONFIG_KERNEL_MCS
         seL4_MessageInfo_t message = seL4_Recv(ep, &badge, reply);
-#else
-        seL4_MessageInfo_t message = seL4_Recv(ep, &badge);
-#endif
         /* Awake! We got a message - check the label and badge to
          * see what the message is about */
         seL4_Word label = seL4_MessageInfo_get_label(message);
@@ -167,20 +155,6 @@ NORETURN void syscall_loop(seL4_CPtr ep)
              * object! */
             sos_handle_irq_notification(&badge);
         } else if (label == seL4_Fault_NullFault) {
-#ifndef CONFIG_KERNEL_MCS
-            /* Save the reply capability of the caller. If we didn't do this,
-             * we could just use seL4_Reply to respond directly to the reply capability.
-             * However if SOS were to block (seL4_Recv) to receive another message, then
-             * the existing reply capability would be deleted. So we save the reply capability
-             * here, as in future you will want to reply to it later. Note that after
-             * saving the reply capability, seL4_Reply cannot be used, as the reply capability
-             * is moved from the internal slot in the TCB to our cspace, and the internal
-             * slot is now empty. */
-            reply = cspace_alloc_slot(&cspace);
-            ZF_LOGF_IF(reply == seL4_CapNull, "Failed to allocate slot for reply");
-            seL4_Error err = cspace_save_reply_cap(&cspace, reply);
-            ZF_LOGF_IFERR(err, "Failed to save reply");
-#endif
             /* It's not a fault or an interrupt, it must be an IPC
              * message from tty_test! */
             handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1, reply);
@@ -406,7 +380,6 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
         return false;
     }
 
-#ifdef CONFIG_KERNEL_MCS
     /* Configure the TCB */
     err = seL4_TCB_Configure(tty_test_process.tcb,
                              tty_test_process.cspace.root_cnode, seL4_NilData,
@@ -442,24 +415,6 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
         ZF_LOGE("Unable to set scheduling params");
         return false;
     }
-#else
-    /* Configure the TCB */
-    err = seL4_TCB_Configure(tty_test_process.tcb, user_ep,
-                             tty_test_process.cspace.root_cnode, seL4_NilData,
-                             tty_test_process.vspace, seL4_NilData, PROCESS_IPC_BUFFER,
-                             tty_test_process.ipc_buffer);
-    if (err != seL4_NoError) {
-        ZF_LOGE("Unable to configure new TCB");
-        return false;
-    }
-
-    /* Set the priority */
-    err = seL4_TCB_SetPriority(tty_test_process.tcb, seL4_CapInitThreadTCB, TTY_PRIORITY);
-    if (err != seL4_NoError) {
-        ZF_LOGE("Unable to set priority of new TCB");
-        return false;
-    }
-#endif
 
     /* Provide a name for the thread -- Helpful for debugging */
     NAME_THREAD(tty_test_process.tcb, app_name);
@@ -610,11 +565,7 @@ NORETURN void *main_continued(UNUSED void *arg)
     ZF_LOGF_IF(!success, "Failed to start first process");
 
     printf("\nSOS entering syscall loop\n");
-#ifdef CONFIG_KERNEL_MCS
     init_threads(ipc_ep, sched_ctrl_start, sched_ctrl_end);
-#else
-    init_threads(ipc_ep);
-#endif
     syscall_loop(ipc_ep);
 }
 /*
@@ -636,10 +587,8 @@ int main(void)
 
     NAME_THREAD(seL4_CapInitThreadTCB, "SOS:root");
 
-#ifdef CONFIG_KERNEL_MCS
     sched_ctrl_start = boot_info->schedcontrol.start;
     sched_ctrl_end = boot_info->schedcontrol.end;
-#endif
 
     /* Initialise the cspace manager, ut manager and dma */
     sos_bootstrap(&cspace, boot_info);

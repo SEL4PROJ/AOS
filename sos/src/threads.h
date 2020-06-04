@@ -27,10 +27,8 @@ typedef struct {
     seL4_CPtr ipc_buffer;
     seL4_Word ipc_buffer_vaddr;
 
-#ifdef CONFIG_KERNEL_MCS
     ut_t *sched_context_ut;
     seL4_CPtr sched_context;
-#endif
 
     ut_t *stack_ut;
     seL4_CPtr stack;
@@ -43,11 +41,7 @@ typedef void thread_main_f(void *);
 
 extern __thread sos_thread_t *current_thread;
 
-#ifdef CONFIG_KERNEL_MCS
 void init_threads(seL4_CPtr ep, seL4_CPtr sched_ctrl_start_, seL4_CPtr sched_ctrl_end_);
-#else
-void init_threads(seL4_CPtr ep);
-#endif
 sos_thread_t *spawn(thread_main_f function, void *arg, seL4_Word badge);
 sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, bool resume);
 int thread_suspend(sos_thread_t *thread);
