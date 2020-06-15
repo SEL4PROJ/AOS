@@ -14,6 +14,7 @@
 #include <aos/vsyscall.h>
 #include <syscalls.h>
 
+__attribute__((constructor))
 void sosapi_init_syscall_table(void)
 {
     setbuf(stdout, NULL);

@@ -46,8 +46,6 @@ static void thread_block(void)
 
 int main(void)
 {
-    sosapi_init_syscall_table();
-
     /* initialise communication */
     ttyout_init();
 

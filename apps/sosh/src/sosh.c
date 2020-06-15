@@ -319,9 +319,6 @@ struct command commands[] = { { "dir", dir }, { "ls", dir }, { "cat", cat }, {
 
 int main(void)
 {
-    /* set up the c library. printf will not work before this is called */
-    sosapi_init_syscall_table();
-
     char buf[BUF_SIZ];
     char *argv[MAX_ARGS];
     int i, r, done, found, new, argc;
