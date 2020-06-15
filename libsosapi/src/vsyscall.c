@@ -16,6 +16,7 @@
 
 void sosapi_init_syscall_table(void)
 {
+    setbuf(stdout, NULL);
     muslcsys_install_syscall(__NR_exit, sys_exit);
     muslcsys_install_syscall(__NR_rt_sigprocmask, sys_rt_sigprocmask);
     muslcsys_install_syscall(__NR_gettid, sys_gettid);

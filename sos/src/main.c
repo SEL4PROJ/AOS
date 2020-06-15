@@ -492,6 +492,8 @@ seL4_CPtr get_seL4_CapInitThreadTCB(void)
 /* tell muslc about our "syscalls", which will bve called by muslc on invocations to the c library */
 void init_muslc(void)
 {
+    setbuf(stdout, NULL);
+
     muslcsys_install_syscall(__NR_set_tid_address, sys_set_tid_address);
     muslcsys_install_syscall(__NR_writev, sys_writev);
     muslcsys_install_syscall(__NR_exit, sys_exit);
