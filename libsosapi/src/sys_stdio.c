@@ -66,26 +66,36 @@ long sys_writev(va_list ap)
     /* Write the buffer to console if the fd is for stdout or stderr. */
     if (fildes == STDOUT_FD || fildes == STDERR_FD) {
         for (int i = 0; i < iovcnt; i++) {
-            if (iov[i].iov_len == 0) continue;
+            if (iov[i].iov_len == 0) {
+                continue;
+            }
 
             size_t nr = sos_write(iov[i].iov_base, iov[i].iov_len);
 
             ret += nr;
-            if (nr != iov[i].iov_len) break;
+            if (nr != iov[i].iov_len) {
+                break;
+            }
         }
     } else {
         for (int i = 0; i < iovcnt; i++) {
-            if (iov[i].iov_len == 0) continue;
+            if (iov[i].iov_len == 0) {
+                continue;
+            }
 
             int nr = sos_sys_write(fildes, iov[i].iov_base, iov[i].iov_len);
 
             if (nr < 0) {
-                if (!ret) ret = nr;
+                if (!ret) {
+                    ret = nr;
+                }
                 break;
             }
 
             ret += nr;
-            if (nr != iov[i].iov_len) break;
+            if (nr != iov[i].iov_len) {
+                break;
+            }
         }
     }
 
@@ -104,12 +114,16 @@ long sys_readv(va_list ap)
         int nr = sos_sys_read(fd, iov[i].iov_base, iov[i].iov_len);
 
         if (nr < 0) {
-            if (!ret) ret = nr;
+            if (!ret) {
+                ret = nr;
+            }
             break;
         }
 
         ret += nr;
-        if (nr != iov[i].iov_len) break;
+        if (nr != iov[i].iov_len) {
+            break;
+        }
     }
 
     return ret;
