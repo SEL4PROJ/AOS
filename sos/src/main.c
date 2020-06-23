@@ -120,10 +120,8 @@ void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args, seL4_CPtr reply
         seL4_SetMR(0, 0);
         /* Send the reply to the saved reply capability. */
         seL4_Send(reply, reply_msg);
-        /* in MCS kernel, reply object is meant to be reused rather than freed */
-        /* Free the slot we allocated for the reply - it is now empty, as the reply
-         * capability was consumed by the send. */
-        cspace_free_slot(&cspace, reply);
+        /* in MCS kernel, reply object is meant to be reused rather than freed as the
+         * send does not consume the reply object unlike the non-MCS kernel */
         break;
 
     default:
