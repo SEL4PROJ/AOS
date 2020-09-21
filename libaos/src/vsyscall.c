@@ -114,6 +114,14 @@ long sel4_vsyscall(long sysnum, ...)
     return ret;
 }
 
+extern void *__sysinfo;
+
+__attribute__((constructor))
+static void init_vsyscall(void)
+{
+    __sysinfo = sel4_vsyscall;
+}
+
 /* Put a pointer to sel4_vsyscall in a special section so anyone loading us
  * knows how to configure our syscall table */
 uintptr_t VISIBLE SECTION("__vsyscall") __vsyscall_ptr = (uintptr_t) sel4_vsyscall;
