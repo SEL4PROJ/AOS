@@ -71,6 +71,10 @@ main () {
 		"${DEST_REPO}/.gitignore"
 	ln \
 		-srf \
+		"projects/aos/settings.cmake" \
+		"${DEST_REPO}/settings.cmake"
+	ln \
+		-srf \
 		"tools/seL4/cmake-tool/default-CMakeLists.txt" \
 		"${DEST_REPO}/CMakeLists.txt"
 
