@@ -120,6 +120,9 @@ ethif_dma_addr_t ethif_dma_malloc(uint32_t size, uint32_t align)
 
 void nfslib_poll()
 {
+    /* Skip polling NFS before NFS is initialised */
+    if (nfs == NULL) return;
+
     struct pollfd pfd = {
         .fd = nfs_get_fd(nfs),
         .events = nfs_which_events(nfs)
@@ -256,6 +259,10 @@ void network_init(cspace_t *cspace, void *timer_vaddr, seL4_CPtr irq_ntfn)
     error = pico_device_init(&pico_dev, "sos picotcp", mac_addr);
     ZF_LOGF_IF(error, "Failed to init picotcp");
 
+    /* Configure a watchdog IRQ for 1 millisecond from now. Whenever the watchdog is reset
+     * using watchdog_reset(), we will get another IRQ 1ms later */
+    watchdog_init(timer_vaddr, WATCHDOG_TIMEOUT);
+
     /* Start DHCP negotiation */
     uint32_t dhcp_xid;
     error = pico_dhcp_initiate_negotiation(&pico_dev, dhcp_callback, &dhcp_xid);
@@ -273,10 +280,6 @@ void network_init(cspace_t *cspace, void *timer_vaddr, seL4_CPtr irq_ntfn)
             ZF_LOGF_IF(error != 0, "Failed to initialise DHCP negotiation");
         }
     } while (dhcp_status != DHCP_STATUS_FINISHED);
-
-    /* Configure a watchdog IRQ for 1 millisecond from now. Whenever the watchdog is reset
-     * using watchdog_reset(), we will get another IRQ 1ms later */
-    watchdog_init(timer_vaddr, WATCHDOG_TIMEOUT);
 
     nfs = nfs_init_context();
     ZF_LOGF_IF(nfs == NULL, "Failed to init NFS context");
