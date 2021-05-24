@@ -174,7 +174,11 @@ int sos_handle_irq_notification(seL4_Word *badge)
 
 static int dispatch_irq(irq_handler_t *irq_handler)
 {
-    return irq_handler->callback(irq_handler->data, irq_handler->irq, irq_handler->irq_handler);
+    if (irq_handler->callback != NULL) {
+        return irq_handler->callback(irq_handler->data, irq_handler->irq, irq_handler->irq_handler);
+    } else {
+        return -1;
+    }
 }
 
 static unsigned long alloc_irq_bit(void)
