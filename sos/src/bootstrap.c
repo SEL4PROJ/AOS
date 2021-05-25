@@ -276,6 +276,8 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
         /* these don't exist in our platform, skip them too */
         case seL4_CapIOPortControl:
         case seL4_CapIOSpace:
+        case seL4_CapSMMUSIDControl:
+        case seL4_CapSMMUCBControl:
             continue;
         }
         ZF_LOGV("cspace: moving cap %lu boot -> new cspace", i);

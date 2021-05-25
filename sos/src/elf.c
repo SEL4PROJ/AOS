@@ -71,7 +71,7 @@ static inline seL4_CapRights_t get_sel4_rights_from_elf(unsigned long permission
  * @return
  *
  */
-static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loadee, char *src, size_t segment_size,
+static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loadee, const char *src, size_t segment_size,
                                     size_t file_size, uintptr_t dst, seL4_CapRights_t permissions)
 {
     assert(file_size <= segment_size);
@@ -176,7 +176,7 @@ int elf_load(cspace_t *cspace, seL4_CPtr loadee_vspace, elf_t *elf_file)
         }
 
         /* Fetch information about this segment. */
-        char *source_addr = elf_file->elfFile + elf_getProgramHeaderOffset(elf_file, i);
+        const char *source_addr = elf_file->elfFile + elf_getProgramHeaderOffset(elf_file, i);
         size_t file_size = elf_getProgramHeaderFileSize(elf_file, i);
         size_t segment_size = elf_getProgramHeaderMemorySize(elf_file, i);
         uintptr_t vaddr = elf_getProgramHeaderVaddr(elf_file, i);

@@ -422,7 +422,7 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
     elf_t elf_file = {};
     unsigned long elf_size;
     size_t cpio_len = _cpio_archive_end - _cpio_archive;
-    char *elf_base = cpio_get_file(_cpio_archive, cpio_len, app_name, &elf_size);
+    const char *elf_base = cpio_get_file(_cpio_archive, cpio_len, app_name, &elf_size);
     if (elf_base == NULL) {
         ZF_LOGE("Unable to locate cpio header for %s", app_name);
         return false;

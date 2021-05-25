@@ -58,7 +58,7 @@ set(KernelMaxNumNodes 1 CACHE STRING "")
 set(KernelIsMCS ON CACHE BOOL "" FORCE)
 
 # Elfloader settings that correspond to how Data61 sets its boards up.
-ApplyData61ElfLoaderSettings(${KernelARMPlatform} ${KernelArmSel4Arch})
+ApplyData61ElfLoaderSettings(${KernelPlatform} ${KernelSel4Arch})
 
 # turn on all the nice features for debugging
 # TODO for benchmarking, you should turn these OFF.
