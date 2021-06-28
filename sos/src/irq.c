@@ -87,7 +87,7 @@ int sos_register_irq_handler(
     }
 
     seL4_CPtr notification_cptr = cspace_alloc_slot(irq_dispatch.cspace);
-    if (handler_cptr == 0) {
+    if (notification_cptr == 0) {
         ZF_LOGE("Could not allocate notification slot for IRQ #%lu", irq);
         cspace_free_slot(irq_dispatch.cspace, handler_cptr);
         free_irq_bit(ident_bit);
