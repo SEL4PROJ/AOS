@@ -289,7 +289,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
 
         /* allocate a slot to duplicate the stack frame cap so we can map it into the application */
         seL4_CPtr frame_cptr = cspace_alloc_slot(cspace);
-        if (local_stack_cptr == seL4_CapNull) {
+        if (frame_cptr == seL4_CapNull) {
             free_frame(frame);
             ZF_LOGE("Failed to alloc slot for stack extra stack frame");
             return 0;
