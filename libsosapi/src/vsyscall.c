@@ -31,5 +31,6 @@ void sosapi_init_syscall_table(void)
     muslcsys_install_syscall(__NR_openat, sys_openat);
     muslcsys_install_syscall(__NR_brk, sys_brk);
     muslcsys_install_syscall(__NR_writev, sys_writev);
+    muslcsys_install_syscall(__NR_write, sys_write);
     muslcsys_install_syscall(__NR_set_tid_address, sys_set_tid_address);
 }
