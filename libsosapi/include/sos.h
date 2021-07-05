@@ -125,8 +125,8 @@ int64_t sos_sys_time_stamp(void);
 /* Returns time in microseconds since booting.
  */
 
-void sos_sys_usleep(int msec);
-/* Sleeps for the specified number of milliseconds.
+void sos_sys_usleep(int usec);
+/* Sleeps for the specified number of microseconds.
  */
 
 

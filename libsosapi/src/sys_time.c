@@ -29,9 +29,9 @@ long sys_nanosleep(va_list ap)
 {
     struct timespec *req = va_arg(ap, struct timespec *);
     /* construct a sleep call */
-    int millis = req->tv_sec * MS_IN_S;
-    millis += req->tv_nsec / NS_IN_MS;
-    sos_sys_usleep(millis);
+    int micros = req->tv_sec * US_IN_S;
+    micros += req->tv_nsec / NS_IN_US;
+    sos_sys_usleep(micros);
     return 0;
 }
 
