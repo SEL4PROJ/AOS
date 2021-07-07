@@ -20,7 +20,8 @@
 #define CHANNEL_SEND(name, channel, message)    name##_channel_send(channel, message)
 #define CHANNEL_RECV(name, channel)             name##_channel_recv(channel)
 #define CHANNEL_IS_EMPTY(name, channel)         name##_channel_is_empty(channel)
-#define CHANNEL(name, type, size) \
+
+#define CHANNEL_DEFINE_HEADER(name, type, size) \
     typedef struct { \
         /* index of the next message in the buffer */ \
         size_t next_msg; \
@@ -33,6 +34,12 @@
         type messages[size]; \
     } CHANNEL_TYPE(name); \
     \
+    CHANNEL_TYPE(name) *name##_channel_create(seL4_CPtr read_available); \
+    void name##_channel_send(CHANNEL_TYPE(name) *channel, type message); \
+    type name##_channel_recv(CHANNEL_TYPE(name) *channel); \
+    bool name##_channel_is_empty(CHANNEL_TYPE(name) *channel);
+
+#define CHANNEL_DEFINE_SOURCE(name, type, size) \
     CHANNEL_TYPE(name) *name##_channel_create(seL4_CPtr read_available) { \
         CHANNEL_TYPE(name) *channel = malloc(sizeof(*channel)); \
         channel->next_msg = 0; \
