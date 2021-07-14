@@ -127,7 +127,7 @@ static int cp(int argc, char **argv)
         num_written = write(fd_out, buf, num_read);
     }
 
-    close(stdout_fd);
+    close(fd_out);
     close(fd);
 
     if (num_read == -1 || num_written == -1) {
