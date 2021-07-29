@@ -10,9 +10,11 @@
  * @TAG(DATA61_GPL)
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <utils/util.h>
 #include <aos/vsyscall.h>
 #include <syscalls.h>
+#include <sel4runtime.h>
 
 __attribute__((constructor))
 void sosapi_init_syscall_table(void)
@@ -33,4 +35,5 @@ void sosapi_init_syscall_table(void)
     muslcsys_install_syscall(__NR_writev, sys_writev);
     muslcsys_install_syscall(__NR_write, sys_write);
     muslcsys_install_syscall(__NR_set_tid_address, sys_set_tid_address);
+    sel4runtime_set_exit(exit);
 }

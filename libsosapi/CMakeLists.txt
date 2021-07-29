@@ -24,8 +24,9 @@ add_library(
     src/sys_time.c
     src/vsyscall.c
 )
+target_link_options(sosapi BEFORE INTERFACE "-Wl,-usosapi_init_syscall_table")
 target_include_directories(sosapi PUBLIC include)
-target_link_libraries(sosapi muslc sel4 utils aos)
+target_link_libraries(sosapi sel4runtime muslc sel4 utils aos)
 
 # warn about everything
 add_compile_options(-Wall -Werror -W -Wextra)
