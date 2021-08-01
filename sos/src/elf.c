@@ -135,17 +135,17 @@ static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loadee, const ch
 
         /* Copy the data from the source. */
         size_t segment_bytes = PAGE_SIZE_4K - leading_zeroes;
-        size_t file_bytes = MIN(segment_bytes, file_size - pos);
         if (pos < file_size) {
+            size_t file_bytes = MIN(segment_bytes, file_size - pos);
             memcpy(loader_data, src, file_bytes);
+            loader_data += file_bytes;
+            
+            /* Fill in the end of the frame with zereos */
+            size_t trailing_zeroes = PAGE_SIZE_4K - (leading_zeroes + file_bytes);
+            memset(loader_data, 0, trailing_zeroes);
         } else {
-            memset(loader_data, 0, file_bytes);
+            memset(loader_data, 0, segment_bytes);
         }
-        loader_data += file_bytes;
-
-        /* Fill in the end of the frame with zereos */
-        size_t trailing_zeroes = PAGE_SIZE_4K - (leading_zeroes + file_bytes);
-        memset(loader_data, 0, trailing_zeroes);
 
         /* Flush the frame contents from loader caches out to memory. */
         flush_frame(frame);
