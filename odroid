@@ -1,15 +1,4 @@
 #!/bin/sh
-#
-# Copyright 2020, Data61
-# Commonwealth Scientific and Industrial Research Organisation (CSIRO)
-# ABN 41 687 119 230.
-#
-# This software may be distributed and modified according to the terms of
-# the GNU General Public License version 2. Note that NO WARRANTY is provided.
-# See "LICENSE_GPLv2.txt" for details.
-#
-# @TAG(DATA61_GPL)
-# 
 
 # Client for the webserver
 #
@@ -130,14 +119,32 @@ reallocate () {
 	http_query "reallocate" -X POST
 }
 
+# Request to be allocated a specific ODroid
+#
+# Do not do this unless you are course staff
+take () {
+	odroid=$1; shift
+	http_query "take/${odroid}" -X POST
+}
+
+# Get a list of all odroids
+odroids () {
+	http_query "odroids" -s
+}
+
+# Get a list of all odroids
+odroid_status () {
+	http_query "status" -s
+}
+
+# Run the test image on the odroid
+odroid_test () {
+	http_query "test" -X POST
+}
+
 # Reset the Das-UBoot configuration
 reconfigure () {
 	http_query "reconfigure" -X POST
-}
-
-# Get the status of the odroid you've been assigned
-odroid_status () {
-	http_query "status" -s
 }
 
 # Connect to the hardware UART stream
@@ -190,11 +197,17 @@ show_help () {
 	    are having issues with your assigned ODroidC2 and have spoken to
 	    a tutor or course staff.
 
+	take <n>
+	    Take an odroid with a specific numeric identifier
+
 	reconfigure
 	    Reload the configuration for the U-Boot bootloader.
 
 	status
-	    Get the status and identifying details of the assigned ODroidC2.
+	    get the details of the allocated odroid
+
+	odroids
+	    List all of the odroids
 
 	tty
 	    Connect to the ODroidC2's UART output (where
@@ -222,8 +235,11 @@ case "${action}" in
 	"reset") reset;;
 	"restart") reset;;
 	"reallocate") reallocate;;
-	"reconfigure") reconfigure;;
 	"status") odroid_status;;
+	"test") odroid_test;;
+	"take") take "$@";;
+	"reconfigure") reconfigure;;
+	"odroids") odroids;;
 	"tty") tty "$@";;
 	"serial") serial "$@";;
 	"help") show_help;;
