@@ -273,7 +273,10 @@ void network_init(cspace_t *cspace, void *timer_vaddr, seL4_CPtr irq_ntfn)
     do {
         seL4_Word badge;
         seL4_Wait(irq_ntfn, &badge);
-        sos_handle_irq_notification(&badge);
+        
+        UNUSED bool have_reply;
+        sos_handle_irq_notification(&badge, &have_reply);
+        
         if (dhcp_status == DHCP_STATUS_ERR) {
             ZF_LOGD("restarting dhcp negotiation");
             error = pico_dhcp_initiate_negotiation(&pico_dev, dhcp_callback, &dhcp_xid);

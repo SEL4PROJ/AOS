@@ -102,48 +102,67 @@ static struct {
     seL4_CPtr stack;
 } tty_test_process;
 
-
-void handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args, seL4_CPtr reply)
+/**
+ * Deals with a syscall and sets the message registers before returning the
+ * message info to be passed through to seL4_ReplyRecv()
+ */
+seL4_MessageInfo_t handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args, bool *have_reply)
 {
+    seL4_MessageInfo_t reply_msg;
 
     /* get the first word of the message, which in the SOS protocol is the number
      * of the SOS "syscall". */
     seL4_Word syscall_number = seL4_GetMR(0);
+
+    /* Set the reply flag */
+    *have_reply = true;
 
     /* Process system call */
     switch (syscall_number) {
     case SOS_SYSCALL0:
         ZF_LOGV("syscall: thread example made syscall 0!\n");
         /* construct a reply message of length 1 */
-        seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
+        reply_msg = seL4_MessageInfo_new(0, 0, 0, 1);
         /* Set the first (and only) word in the message to 0 */
         seL4_SetMR(0, 0);
-        /* Send the reply to the saved reply capability. */
-        seL4_Send(reply, reply_msg);
-        /* in MCS kernel, reply object is meant to be reused rather than freed as the
-         * send does not consume the reply object unlike the non-MCS kernel */
+
         break;
 
     default:
+        reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
         ZF_LOGE("Unknown syscall %lu\n", syscall_number);
-        /* don't reply to an unknown syscall */
+        /* Don't reply to an unknown syscall */
+        *have_reply = false;
     }
+
+    return reply_msg;
 }
 
 NORETURN void syscall_loop(seL4_CPtr ep)
 {
     seL4_CPtr reply;
+    
     /* Create reply object */
     ut_t *reply_ut = alloc_retype(&reply, seL4_ReplyObject, seL4_ReplyBits);
     if (reply_ut == NULL) {
         ZF_LOGF("Failed to alloc reply object ut");
     }
 
+    bool have_reply = false;
+
     while (1) {
         seL4_Word badge = 0;
-        /* Block on ep, waiting for an IPC sent over ep, or
-         * a notification from our bound notification object */
-        seL4_MessageInfo_t message = seL4_Recv(ep, &badge, reply);
+        seL4_MessageInfo_t message;
+        seL4_MessageInfo_t reply_msg;
+
+        /* Reply (if there is a reply) and block on ep, waiting for an IPC
+         * sent over ep, or a notification from our bound notification object */
+        if (have_reply) {
+            message = seL4_ReplyRecv(ep,reply_msg, &badge, reply);
+        } else {
+            message = seL4_Recv(ep, &badge, reply);
+        }
+
         /* Awake! We got a message - check the label and badge to
          * see what the message is about */
         seL4_Word label = seL4_MessageInfo_get_label(message);
@@ -151,16 +170,19 @@ NORETURN void syscall_loop(seL4_CPtr ep)
         if (badge & IRQ_EP_BADGE) {
             /* It's a notification from our bound notification
              * object! */
-            sos_handle_irq_notification(&badge);
+            sos_handle_irq_notification(&badge, &have_reply);
         } else if (label == seL4_Fault_NullFault) {
+
             /* It's not a fault or an interrupt, it must be an IPC
              * message from tty_test! */
-            handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1, reply);
+            reply_msg = handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1, &have_reply);
         } else {
             /* some kind of fault */
             debug_print_fault(message, TTY_NAME);
             /* dump registers too */
             debug_dump_registers(tty_test_process.tcb);
+            /* Don't reply and recv on nothing */
+            have_reply = false;
 
             ZF_LOGF("The SOS skeleton does not know how to handle faults!");
         }

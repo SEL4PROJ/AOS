@@ -79,4 +79,4 @@ int sos_register_irq_handler(
  *
  * Returns any errors raised during handling IRQs or 0 on success.
  */
-int sos_handle_irq_notification(seL4_Word *badge);
+int sos_handle_irq_notification(seL4_Word *badge, bool *have_reply);

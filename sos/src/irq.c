@@ -145,7 +145,7 @@ int sos_register_irq_handler(
     return 0;
 }
 
-int sos_handle_irq_notification(seL4_Word *badge)
+int sos_handle_irq_notification(seL4_Word *badge, bool *have_reply)
 {
     unsigned long unchecked_bits =
         *badge &
@@ -168,6 +168,9 @@ int sos_handle_irq_notification(seL4_Word *badge)
         *badge &= ~BIT(bit);
         unchecked_bits &= *badge;
     };
+
+    /* Currently we just don't reply after handling all IRQs */
+    *have_reply = false;
 
     return 0;
 }
