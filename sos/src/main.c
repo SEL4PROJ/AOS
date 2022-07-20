@@ -50,7 +50,7 @@
  * be the bitwise 'OR' of the notification object badge and the badges
  * of all pending IPC messages.
  *
- * All badged IRQs set high bet, then we use uniqe bits to
+ * All badged IRQs set high bit, then we use unique bits to
  * distinguish interrupt sources.
  */
 #define IRQ_EP_BADGE         BIT(seL4_BadgeBits - 1ul)
@@ -149,16 +149,16 @@ NORETURN void syscall_loop(seL4_CPtr ep)
     }
 
     bool have_reply = false;
+    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
 
     while (1) {
         seL4_Word badge = 0;
         seL4_MessageInfo_t message;
-        seL4_MessageInfo_t reply_msg;
 
         /* Reply (if there is a reply) and block on ep, waiting for an IPC
          * sent over ep, or a notification from our bound notification object */
         if (have_reply) {
-            message = seL4_ReplyRecv(ep,reply_msg, &badge, reply);
+            message = seL4_ReplyRecv(ep, reply_msg, &badge, reply);
         } else {
             message = seL4_Recv(ep, &badge, reply);
         }
@@ -509,7 +509,7 @@ seL4_CPtr get_seL4_CapInitThreadTCB(void)
     return seL4_CapInitThreadTCB;
 }
 
-/* tell muslc about our "syscalls", which will bve called by muslc on invocations to the c library */
+/* tell muslc about our "syscalls", which will be called by muslc on invocations to the c library */
 void init_muslc(void)
 {
     setbuf(stdout, NULL);
