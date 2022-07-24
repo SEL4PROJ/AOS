@@ -14,7 +14,13 @@
 #include "../mapping.h"
 #include "uart.h"
 
+#if defined(CONFIG_PLAT_ODROIDC2)
 #define UART_PADDR 0xc81004c0
+#elif defined(CONFIG_PLAT_ODROIDC4)
+#define UART_PADDR 0xFF803000
+#else
+#error "only odroid-c2 and odroid-c4 supported currently."
+#endif
 
 static volatile struct {
     uint32_t wfifo;
