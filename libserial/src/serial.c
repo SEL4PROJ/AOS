@@ -35,7 +35,7 @@ static struct serial serial = {};
 
 static void serial_recv_handler(uint16_t ev, struct pico_socket *s)
 {
-    if (ev == PICO_SOCK_EV_RD) {
+    if (ev == PICO_SOCK_EV_RD && serial.handler) {
         int read = 0;
         do {
             read = pico_socket_recvfrom(serial.pico_socket, buf, MAX_PAYLOAD_SIZE, &serial.peer, &serial.port);
