@@ -25,7 +25,7 @@ add_subdirectory(libaos)
 add_subdirectory(libclock)
 add_subdirectory(libethernet)
 add_subdirectory(libsel4cspace)
-add_subdirectory(libserial)
+add_subdirectory(libnetworkconsole)
 add_subdirectory(libsosapi)
 # add any additional libs here
 

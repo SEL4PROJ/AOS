@@ -11,8 +11,8 @@
 #
 cmake_minimum_required(VERSION 3.7.2)
 
-project(libserial C)
+project(libnetworkconsole C)
 
-add_library(serial EXCLUDE_FROM_ALL src/serial.c)
-target_include_directories(serial PUBLIC include)
-target_link_libraries(serial muslc sel4 picotcp utils sos_Config)
+add_library(networkconsole EXCLUDE_FROM_ALL src/networkconsole.c)
+target_include_directories(networkconsole PUBLIC include)
+target_link_libraries(networkconsole muslc sel4 picotcp utils sos_Config)
