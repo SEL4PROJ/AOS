@@ -23,7 +23,7 @@
 #include <clock/clock.h>
 #include <cpio/cpio.h>
 #include <elf/elf.h>
-#include <serial/serial.h>
+#include <networkconsole/networkconsole.h>
 
 #include <sel4runtime.h>
 #include <sel4runtime/auxv.h>
