@@ -147,16 +147,6 @@ static int load_segment_into_vspace(cspace_t *cspace, seL4_CPtr loadee, const ch
             memset(loader_data, 0, segment_bytes);
         }
 
-        /* Flush the frame contents from loader caches out to memory. */
-        flush_frame(frame);
-
-        /* Invalidate the caches in the loadee forcing data to be loaded
-         * from memory. */
-        if (seL4_CapRights_get_capAllowWrite(permissions)) {
-            seL4_ARM_Page_Invalidate_Data(loadee_frame, 0, PAGE_SIZE_4K);
-        }
-        seL4_ARM_Page_Unify_Instruction(loadee_frame, 0, PAGE_SIZE_4K);
-
         pos += segment_bytes;
         dst += segment_bytes;
         src += segment_bytes;

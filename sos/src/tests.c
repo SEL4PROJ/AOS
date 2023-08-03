@@ -127,7 +127,6 @@ static void test_frame_table(void)
         unsigned char *vaddr = frame_data(frames[f]);
         vaddr[0] = f;
         vaddr[BIT(seL4_PageBits) - 1] = f;
-        flush_frame(frames[f]);
     }
 
     /* Check the writes happened */
