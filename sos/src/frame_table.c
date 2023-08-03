@@ -152,19 +152,6 @@ unsigned char *frame_data(frame_ref_t frame_ref)
     return frame_table.frame_data[frame_ref];
 }
 
-void flush_frame(frame_ref_t frame_ref)
-{
-    frame_t *frame = frame_from_ref(frame_ref);
-    seL4_ARM_Page_Clean_Data(frame->sos_page, 0, BIT(seL4_PageBits));
-    seL4_ARM_Page_Unify_Instruction(frame->sos_page, 0, BIT(seL4_PageBits));
-}
-
-void invalidate_frame(frame_ref_t frame_ref)
-{
-    frame_t *frame = frame_from_ref(frame_ref);
-    seL4_ARM_Page_Invalidate_Data(frame->sos_page, 0, BIT(seL4_PageBits));
-}
-
 frame_t *frame_from_ref(frame_ref_t frame_ref)
 {
     assert(frame_ref != NULL_FRAME);
