@@ -13,7 +13,7 @@
 
 #include <stdio.h>
 
-/* This is the cptr where a clients syscall enpoint will
+/* This is the cptr where a clients syscall endpoint will
  * be stored in the clients cspace. */
 #define SYSCALL_ENDPOINT_SLOT          (1)
 

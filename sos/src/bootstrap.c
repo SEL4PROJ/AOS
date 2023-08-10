@@ -222,7 +222,7 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     size += (n_cnodes * BIT(CNODE_SIZE_BITS)) + BIT(INITIAL_TASK_CNODE_SIZE_BITS);
 
     /* check our cnodes will fit into our top level cnode */
-    ZF_LOGF_IF(n_cnodes > CNODE_SLOTS(INITIAL_TASK_CNODE_SIZE_BITS), "Insufficient slots %lu for"
+    ZF_LOGF_IF(n_cnodes > CNODE_SLOTS(INITIAL_TASK_CNODE_SIZE_BITS), "Insufficient slots %lu for "
                "bottom level cnodes %lu", CNODE_SLOTS(INITIAL_TASK_CNODE_SIZE_BITS), n_cnodes);
 
     /* now we have worked out how much memory we need to set up the system -
@@ -262,7 +262,7 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
     /* Switch from BOOT CSPACE -> NEW CSPACE by switching current threads cnode */
     err = seL4_TCB_SetSpace(seL4_CapInitThreadTCB, 0, level1_cptr, guard,
                             seL4_CapInitThreadVSpace, seL4_NilData);
-    ZF_LOGF_IFERR(err, "Replacing intial cnode with new cspace");
+    ZF_LOGF_IFERR(err, "Replacing initial cnode with new cspace");
 
     /* Now seL4_CapInitThreadCNode refers to the new cspace, the old boot cspace is boot_cptr.
      *
