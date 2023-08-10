@@ -11,10 +11,21 @@
  */
 #pragma once
 
+#include <sel4/types.h>
+
+#if defined(CONFIG_PLAT_ODROIDC2)
 #define TIMER_BASE      0xc1100000
 #define TIMER_MAP_BASE  0xc1109000
 
 #define TIMER_REG_START   0x940    // TIMER_MUX
+#elif defined(CONFIG_PLAT_ODROIDC4)
+#define TIMER_BASE      0xffd00000
+#define TIMER_MAP_BASE  0xffd0f000
+
+#define TIMER_REG_START   0x3c50    // TIMER_MUX
+#else
+#error "only odroid-c2 and odroid-c4 supported currently."
+#endif
 
 /**
  * Identifiers for each of the timeout timers.

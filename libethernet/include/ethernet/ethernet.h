@@ -11,6 +11,8 @@
  */
 #pragma once
 
+#include <autoconf.h>
+
 #include <stdint.h>
 
 /**
@@ -23,8 +25,15 @@
  * MMIO address of the ethernet MAC, for use by sos_map_device. The virtual address
  * that the device is mapped at should then be passed to ethif_init as the base address.
  */
-#define ODROIDC2_ETH_PHYS_ADDR      0xc9410000
-#define ODROIDC2_ETH_PHYS_SIZE         0x10000
+#if defined(CONFIG_PLAT_ODROIDC2)
+#define ETH_PHYS_ADDR      0xc9410000
+#define ETH_PHYS_SIZE         0x10000
+#elif defined(CONFIG_PLAT_ODROIDC4)
+#define ETH_PHYS_ADDR      0xFF3F0000
+#define ETH_PHYS_SIZE         0x10000
+#else
+#error "only odroid-c2 and odroid-c4 supported currently."
+#endif
 
 #define MAXIMUM_TRANSFER_UNIT             1500
 
