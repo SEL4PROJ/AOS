@@ -208,7 +208,7 @@ static int dir(int argc, char **argv)
     char buf[BUF_SIZ];
 
     if (argc > 2) {
-        printf("usage: %s [file]\n", argv[0]);
+        printf("Usage: %s [file]\n", argv[0]);
         return 1;
     }
 
@@ -244,7 +244,7 @@ static int dir(int argc, char **argv)
 static int second_sleep(int argc, char *argv[])
 {
     if (argc != 2) {
-        printf("Usage %s seconds\n", argv[0]);
+        printf("Usage: %s seconds\n", argv[0]);
         return 1;
     }
     sleep(atoi(argv[1]));
@@ -256,7 +256,7 @@ static int milli_sleep(int argc, char *argv[])
     struct timespec tv;
     uint64_t nanos;
     if (argc != 2) {
-        printf("Usage %s milliseconds\n", argv[0]);
+        printf("Usage: %s milliseconds\n", argv[0]);
         return 1;
     }
     nanos = (uint64_t)atoi(argv[1]) * NS_IN_MS;
@@ -297,14 +297,14 @@ static int kill(int argc, char *argv[])
 
 static int benchmark(int argc, char *argv[])
 {
-    if (argc == 2 && strcmp(argv[1], "-d") == 0) {
-        printf("Running benchmark in DEBUG mode\n");
+    if (argc == 1 || (argc == 2 && strcmp(argv[1], "-d") == 0)) {
+        printf("Running benchmark in DEBUG mode. To run in performance mode, use -p flag\n");
         return sos_benchmark(1);
-    } else if (argc == 1) {
-        printf("Running benchmark\n");
+    } else if (argc == 2 && strcmp(argv[1], "-p") == 0) {
+        printf("Running benchmark in PERFORMANCE mode\n");
         return sos_benchmark(0);
     } else {
-        printf("Unknown option to %s\n", argv[0]);
+        printf("Usage: %s [-dp]\n", argv[0]);
         return -1;
     }
 }
