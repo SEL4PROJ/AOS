@@ -11,15 +11,15 @@
 #
 cmake_minimum_required(VERSION 3.7.2)
 
-project(tty_test C)
+project(console_test C)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -u __vsyscall_ptr")
 
-add_executable(tty_test EXCLUDE_FROM_ALL src/tty_test.c)
-target_include_directories(tty_test PRIVATE include)
-target_link_libraries(tty_test sel4runtime muslc sel4 sosapi)
+add_executable(console_test EXCLUDE_FROM_ALL src/console_test.c)
+target_include_directories(console_test PRIVATE include)
+target_link_libraries(console_test sel4runtime muslc sel4 sosapi)
 
 # warn about everything
 add_compile_options(-Wall -Werror -W -Wextra)
 
-add_app(tty_test)
+add_app(console_test)

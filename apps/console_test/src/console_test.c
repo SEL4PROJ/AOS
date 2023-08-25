@@ -28,7 +28,7 @@
 // we do this by making an unimplemented system call.
 static void thread_block(void)
 {
-    /* construct some info about the IPC message tty_test will send
+    /* construct some info about the IPC message console_test will send
      * to sos -- it's 1 word long */
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 1);
     /* Set the first word in the message to 1 */
@@ -42,7 +42,7 @@ static void thread_block(void)
 int main(void)
 {
     do {
-        fputs("task:\tHello world, I'm\ttty_test!\n", stdout);
+        fputs("task:\tHello world, I'm\tconsole_test!\n", stdout);
         thread_block();
         // sleep(1);    // Implement this as a syscall in the future
     } while (1);

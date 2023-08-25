@@ -12,7 +12,7 @@
 cmake_minimum_required(VERSION 3.7.2)
 
 # add apps
-add_subdirectory(apps/tty_test)
+add_subdirectory(apps/console_test)
 add_subdirectory(apps/sosh)
 # add any additional apps here
 
