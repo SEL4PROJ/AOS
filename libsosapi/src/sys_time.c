@@ -31,7 +31,7 @@ long sys_nanosleep(va_list ap)
     /* construct a sleep call */
     int micros = req->tv_sec * US_IN_S;
     micros += req->tv_nsec / NS_IN_US;
-    sos_sys_usleep(micros);
+    sos_usleep(micros);
     return 0;
 }
 
@@ -42,7 +42,7 @@ long sys_clock_gettime(va_list ap)
     if (clk_id != CLOCK_REALTIME) {
         return -EINVAL;
     }
-    int64_t micros = sos_sys_time_stamp();
+    int64_t micros = sos_time_stamp();
     res->tv_sec = micros / US_IN_S;
     res->tv_nsec = (micros % US_IN_S) * NS_IN_US;
     return 0;

@@ -67,7 +67,7 @@ long sys_writev(va_list ap)
             continue;
         }
 
-        int nr = sos_sys_write(fildes, iov[i].iov_base, iov[i].iov_len);
+        int nr = sos_write(fildes, iov[i].iov_base, iov[i].iov_len);
 
         if (nr < 0) {
             if (!ret) {
@@ -94,7 +94,7 @@ long sys_readv(va_list ap)
     long ret = 0;
 
     for (i = 0; i < iovcnt; i++) {
-        int nr = sos_sys_read(fd, iov[i].iov_base, iov[i].iov_len);
+        int nr = sos_read(fd, iov[i].iov_base, iov[i].iov_len);
 
         if (nr < 0) {
             if (!ret) {
@@ -146,9 +146,9 @@ long sys_ioctl(va_list ap)
     return 0;
 }
 
-static long sos_sys_open_wrapper(const char *pathname, int flags)
+static long sos_open_wrapper(const char *pathname, int flags)
 {
-    long fd = sos_sys_open(pathname, flags);
+    long fd = sos_open(pathname, flags);
     if (fd == STDIN_FD || fd == STDOUT_FD || fd == STDERR_FD) {
         /* Internally muslc believes it is on a posix system with
          * stdin, stdout and stderr already open with fd's 0, 1 and 2
@@ -177,11 +177,11 @@ long sys_openat(va_list ap)
     flags &= ~O_LARGEFILE;
     /* someone at some point got confused about what are flags and what the mode
      * is. so this does actually make sense */
-    return sos_sys_open_wrapper(pathname, flags);
+    return sos_open_wrapper(pathname, flags);
 }
 
 long sys_close(va_list ap)
 {
     int fd = va_arg(ap, int);
-    return sos_sys_close(fd);
+    return sos_close(fd);
 }
