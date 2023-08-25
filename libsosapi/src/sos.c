@@ -17,6 +17,18 @@
 
 #include <sel4/sel4.h>
 
+static size_t sos_debug_print(const void *vData, size_t count)
+{
+#ifdef CONFIG_DEBUG_BUILD
+    size_t i;
+    const char *realdata = vData;
+    for (i = 0; i < count; i++) {
+        seL4_DebugPutChar(realdata[i]);
+    }
+#endif
+    return count;
+}
+
 int sos_sys_open(const char *path, fmode_t mode)
 {
     assert(!"You need to implement this");
@@ -37,8 +49,11 @@ int sos_sys_read(int file, char *buf, size_t nbyte)
 
 int sos_sys_write(int file, const char *buf, size_t nbyte)
 {
-    assert(!"You need to implement this");
-    return -1;
+    /* MILESTONE 0: implement this to use your syscall and
+     * writes to the network console!
+     * Writing to files will come in later milestones.
+     */
+    return sos_debug_print(buf, nbyte);
 }
 
 int sos_getdirent(int pos, char *name, size_t nbyte)
