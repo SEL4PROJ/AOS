@@ -59,7 +59,7 @@ typedef struct {
 
 /* I/O system calls */
 
-int sos_sys_open(const char *path, fmode_t mode);
+int sos_open(const char *path, fmode_t mode);
 /* Open file and return file descriptor, -1 if unsuccessful
  * (too many open files, console already open for reading).
  * A new file should be created if 'path' does not already exist.
@@ -69,18 +69,18 @@ int sos_sys_open(const char *path, fmode_t mode);
  * "path" is file name, "mode" is one of O_RDONLY, O_WRONLY, O_RDWR.
  */
 
-int sos_sys_close(int file);
+int sos_close(int file);
 /* Closes an open file. Returns 0 if successful, -1 if not (invalid "file").
  */
 
-int sos_sys_read(int file, char *buf, size_t nbyte);
+int sos_read(int file, char *buf, size_t nbyte);
 /* Read from an open file, into "buf", max "nbyte" bytes.
  * Returns the number of bytes read.
  * Will block when reading from console and no input is presently
  * available. Returns -1 on error (invalid file).
  */
 
-int sos_sys_write(int file, const char *buf, size_t nbyte);
+int sos_write(int file, const char *buf, size_t nbyte);
 /* Write to an open file, from "buf", max "nbyte" bytes.
  * Returns the number of bytes written. <nbyte disk is full.
  * Returns -1 on error (invalid file).
@@ -121,11 +121,11 @@ pid_t sos_process_wait(pid_t pid);
  * to exit. Returns the pid of the process which exited.
  */
 
-int64_t sos_sys_time_stamp(void);
+int64_t sos_time_stamp(void);
 /* Returns time in microseconds since booting.
  */
 
-void sos_sys_usleep(int usec);
+void sos_usleep(int usec);
 /* Sleeps for the specified number of microseconds.
  */
 

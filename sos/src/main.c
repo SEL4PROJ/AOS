@@ -56,9 +56,9 @@
 #define IRQ_EP_BADGE         BIT(seL4_BadgeBits - 1ul)
 #define IRQ_IDENT_BADGE_BITS MASK(seL4_BadgeBits - 1ul)
 
-#define TTY_NAME             "tty_test"
-#define TTY_PRIORITY         (0)
-#define TTY_EP_BADGE         (101)
+#define APP_NAME             "console_test"
+#define APP_PRIORITY         (0)
+#define APP_EP_BADGE         (101)
 
 /* The number of additional stack pages to provide to the initial
  * process */
@@ -100,7 +100,7 @@ static struct {
 
     ut_t *stack_ut;
     seL4_CPtr stack;
-} tty_test_process;
+} user_process;
 
 /**
  * Deals with a syscall and sets the message registers before returning the
@@ -127,7 +127,6 @@ seL4_MessageInfo_t handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args, b
         seL4_SetMR(0, 0);
 
         break;
-
     default:
         reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
         ZF_LOGE("Unknown syscall %lu\n", syscall_number);
@@ -174,13 +173,13 @@ NORETURN void syscall_loop(seL4_CPtr ep)
         } else if (label == seL4_Fault_NullFault) {
 
             /* It's not a fault or an interrupt, it must be an IPC
-             * message from tty_test! */
+             * message from console_test! */
             reply_msg = handle_syscall(badge, seL4_MessageInfo_get_length(message) - 1, &have_reply);
         } else {
             /* some kind of fault */
-            debug_print_fault(message, TTY_NAME);
+            debug_print_fault(message, APP_NAME);
             /* dump registers too */
-            debug_dump_registers(tty_test_process.tcb);
+            debug_dump_registers(user_process.tcb);
             /* Don't reply and recv on nothing */
             have_reply = false;
 
@@ -200,8 +199,8 @@ static int stack_write(seL4_Word *mapped_stack, int index, uintptr_t val)
 static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, elf_t *elf_file)
 {
     /* Create a stack frame */
-    tty_test_process.stack_ut = alloc_retype(&tty_test_process.stack, seL4_ARM_SmallPageObject, seL4_PageBits);
-    if (tty_test_process.stack_ut == NULL) {
+    user_process.stack_ut = alloc_retype(&user_process.stack, seL4_ARM_SmallPageObject, seL4_PageBits);
+    if (user_process.stack_ut == NULL) {
         ZF_LOGE("Failed to allocate stack");
         return 0;
     }
@@ -221,7 +220,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
     }
 
     /* Map in the stack frame for the user app */
-    seL4_Error err = map_frame(cspace, tty_test_process.stack, tty_test_process.vspace, stack_bottom,
+    seL4_Error err = map_frame(cspace, user_process.stack, user_process.vspace, stack_bottom,
                                seL4_AllRights, seL4_ARM_Default_VMAttributes);
     if (err != 0) {
         ZF_LOGE("Unable to map stack for user app");
@@ -236,7 +235,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
     }
 
     /* copy the stack frame cap into the slot */
-    err = cspace_copy(cspace, local_stack_cptr, cspace, tty_test_process.stack, seL4_AllRights);
+    err = cspace_copy(cspace, local_stack_cptr, cspace, user_process.stack, seL4_AllRights);
     if (err != seL4_NoError) {
         cspace_free_slot(cspace, local_stack_cptr);
         ZF_LOGE("Failed to copy cap");
@@ -326,7 +325,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
             return 0;
         }
 
-        err = map_frame(cspace, frame_cptr, tty_test_process.vspace, stack_bottom,
+        err = map_frame(cspace, frame_cptr, user_process.vspace, stack_bottom,
                         seL4_AllRights, seL4_ARM_Default_VMAttributes);
         if (err != 0) {
             cspace_delete(cspace, frame_cptr);
@@ -349,30 +348,30 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
 bool start_first_process(char *app_name, seL4_CPtr ep)
 {
     /* Create a VSpace */
-    tty_test_process.vspace_ut = alloc_retype(&tty_test_process.vspace, seL4_ARM_PageGlobalDirectoryObject,
+    user_process.vspace_ut = alloc_retype(&user_process.vspace, seL4_ARM_PageGlobalDirectoryObject,
                                               seL4_PGDBits);
-    if (tty_test_process.vspace_ut == NULL) {
+    if (user_process.vspace_ut == NULL) {
         return false;
     }
 
     /* assign the vspace to an asid pool */
-    seL4_Word err = seL4_ARM_ASIDPool_Assign(seL4_CapInitThreadASIDPool, tty_test_process.vspace);
+    seL4_Word err = seL4_ARM_ASIDPool_Assign(seL4_CapInitThreadASIDPool, user_process.vspace);
     if (err != seL4_NoError) {
         ZF_LOGE("Failed to assign asid pool");
         return false;
     }
 
     /* Create a simple 1 level CSpace */
-    err = cspace_create_one_level(&cspace, &tty_test_process.cspace);
+    err = cspace_create_one_level(&cspace, &user_process.cspace);
     if (err != CSPACE_NOERROR) {
         ZF_LOGE("Failed to create cspace");
         return false;
     }
 
     /* Create an IPC buffer */
-    tty_test_process.ipc_buffer_ut = alloc_retype(&tty_test_process.ipc_buffer, seL4_ARM_SmallPageObject,
+    user_process.ipc_buffer_ut = alloc_retype(&user_process.ipc_buffer, seL4_ARM_SmallPageObject,
                                                   seL4_PageBits);
-    if (tty_test_process.ipc_buffer_ut == NULL) {
+    if (user_process.ipc_buffer_ut == NULL) {
         ZF_LOGE("Failed to alloc ipc buffer ut");
         return false;
     }
@@ -380,46 +379,46 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
     /* allocate a new slot in the target cspace which we will mint a badged endpoint cap into --
      * the badge is used to identify the process, which will come in handy when you have multiple
      * processes. */
-    seL4_CPtr user_ep = cspace_alloc_slot(&tty_test_process.cspace);
+    seL4_CPtr user_ep = cspace_alloc_slot(&user_process.cspace);
     if (user_ep == seL4_CapNull) {
         ZF_LOGE("Failed to alloc user ep slot");
         return false;
     }
 
     /* now mutate the cap, thereby setting the badge */
-    err = cspace_mint(&tty_test_process.cspace, user_ep, &cspace, ep, seL4_AllRights, TTY_EP_BADGE);
+    err = cspace_mint(&user_process.cspace, user_ep, &cspace, ep, seL4_AllRights, APP_EP_BADGE);
     if (err) {
         ZF_LOGE("Failed to mint user ep");
         return false;
     }
 
     /* Create a new TCB object */
-    tty_test_process.tcb_ut = alloc_retype(&tty_test_process.tcb, seL4_TCBObject, seL4_TCBBits);
-    if (tty_test_process.tcb_ut == NULL) {
+    user_process.tcb_ut = alloc_retype(&user_process.tcb, seL4_TCBObject, seL4_TCBBits);
+    if (user_process.tcb_ut == NULL) {
         ZF_LOGE("Failed to alloc tcb ut");
         return false;
     }
 
     /* Configure the TCB */
-    err = seL4_TCB_Configure(tty_test_process.tcb,
-                             tty_test_process.cspace.root_cnode, seL4_NilData,
-                             tty_test_process.vspace, seL4_NilData, PROCESS_IPC_BUFFER,
-                             tty_test_process.ipc_buffer);
+    err = seL4_TCB_Configure(user_process.tcb,
+                             user_process.cspace.root_cnode, seL4_NilData,
+                             user_process.vspace, seL4_NilData, PROCESS_IPC_BUFFER,
+                             user_process.ipc_buffer);
     if (err != seL4_NoError) {
         ZF_LOGE("Unable to configure new TCB");
         return false;
     }
 
     /* Create scheduling context */
-    tty_test_process.sched_context_ut = alloc_retype(&tty_test_process.sched_context, seL4_SchedContextObject,
+    user_process.sched_context_ut = alloc_retype(&user_process.sched_context, seL4_SchedContextObject,
                                                      seL4_MinSchedContextBits);
-    if (tty_test_process.sched_context_ut == NULL) {
+    if (user_process.sched_context_ut == NULL) {
         ZF_LOGE("Failed to alloc sched context ut");
         return false;
     }
 
     /* Configure the scheduling context to use the first core with budget equal to period */
-    err = seL4_SchedControl_Configure(sched_ctrl_start, tty_test_process.sched_context, US_IN_MS, US_IN_MS, 0, 0);
+    err = seL4_SchedControl_Configure(sched_ctrl_start, user_process.sched_context, US_IN_MS, US_IN_MS, 0, 0);
     if (err != seL4_NoError) {
         ZF_LOGE("Unable to configure scheduling context");
         return false;
@@ -429,15 +428,15 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
      * In MCS, fault end point needed here should be in current thread's cspace.
      * NOTE this will use the unbadged ep unlike above, you might want to mint it with a badge
      * so you can identify which thread faulted in your fault handler */
-    err = seL4_TCB_SetSchedParams(tty_test_process.tcb, seL4_CapInitThreadTCB, seL4_MinPrio, TTY_PRIORITY,
-                                  tty_test_process.sched_context, ep);
+    err = seL4_TCB_SetSchedParams(user_process.tcb, seL4_CapInitThreadTCB, seL4_MinPrio, APP_PRIORITY,
+                                  user_process.sched_context, ep);
     if (err != seL4_NoError) {
         ZF_LOGE("Unable to set scheduling params");
         return false;
     }
 
     /* Provide a name for the thread -- Helpful for debugging */
-    NAME_THREAD(tty_test_process.tcb, app_name);
+    NAME_THREAD(user_process.tcb, app_name);
 
     /* parse the cpio image */
     ZF_LOGI("\nStarting \"%s\"...\n", app_name);
@@ -459,14 +458,14 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
     seL4_Word sp = init_process_stack(&cspace, seL4_CapInitThreadVSpace, &elf_file);
 
     /* load the elf image from the cpio file */
-    err = elf_load(&cspace, tty_test_process.vspace, &elf_file);
+    err = elf_load(&cspace, user_process.vspace, &elf_file);
     if (err) {
         ZF_LOGE("Failed to load elf image");
         return false;
     }
 
     /* Map in the IPC buffer for the thread */
-    err = map_frame(&cspace, tty_test_process.ipc_buffer, tty_test_process.vspace, PROCESS_IPC_BUFFER,
+    err = map_frame(&cspace, user_process.ipc_buffer, user_process.vspace, PROCESS_IPC_BUFFER,
                     seL4_AllRights, seL4_ARM_Default_VMAttributes);
     if (err != 0) {
         ZF_LOGE("Unable to map IPC buffer for user app");
@@ -479,7 +478,7 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
         .sp = sp,
     };
     printf("Starting ttytest at %p\n", (void *) context.pc);
-    err = seL4_TCB_WriteRegisters(tty_test_process.tcb, 1, 0, 2, &context);
+    err = seL4_TCB_WriteRegisters(user_process.tcb, 1, 0, 2, &context);
     ZF_LOGE_IF(err, "Failed to write registers");
     return err == seL4_NoError;
 }
@@ -583,7 +582,7 @@ NORETURN void *main_continued(UNUSED void *arg)
 
     /* Start the user application */
     printf("Start first process\n");
-    bool success = start_first_process(TTY_NAME, ipc_ep);
+    bool success = start_first_process(APP_NAME, ipc_ep);
     ZF_LOGF_IF(!success, "Failed to start first process");
 
     printf("\nSOS entering syscall loop\n");

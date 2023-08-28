@@ -20,39 +20,31 @@
  *
  ****************************************************************************/
 
-#include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <sel4/sel4.h>
-#include <syscalls.h>
-
-#include "ttyout.h"
+#include <sos.h>
 
 // Block a thread forever
 // we do this by making an unimplemented system call.
 static void thread_block(void)
 {
-    /* construct some info about the IPC message tty_test will send
+    /* construct some info about the IPC message console_test will send
      * to sos -- it's 1 word long */
     seL4_MessageInfo_t tag = seL4_MessageInfo_new(0, 0, 0, 1);
     /* Set the first word in the message to 1 */
     seL4_SetMR(0, 1);
     /* Now send the ipc -- call will send the ipc, then block until a reply
      * message is received */
-    seL4_Call(SYSCALL_ENDPOINT_SLOT, tag);
+    seL4_Call(SOS_IPC_EP_CAP, tag);
     /* Currently SOS does not reply -- so we never come back here */
 }
 
 int main(void)
 {
-    /* initialise communication */
-    ttyout_init();
-
     do {
-        fputs("task:\tHello world, I'm\ttty_test!\n", stdout);
+        fputs("task:\tHello world, I'm\tconsole_test!\n", stdout);
         thread_block();
-        // sleep(1);    // Implement this as a syscall
+        // sleep(1);    // Implement this as a syscall in the future
     } while (1);
 
     return 0;

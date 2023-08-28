@@ -119,12 +119,12 @@ void sos_fprintf(int fd, const char *format, ...)
     char buf[LINE_SIZE];
     vsnprintf(buf, LINE_SIZE, format, args);
     va_end(args);
-    sos_sys_write(fd, buf, strnlen(buf, LINE_SIZE));
+    sos_write(fd, buf, strnlen(buf, LINE_SIZE));
 }
 
 static int open_helper(char *name, fmode_t mode)
 {
-    int fd = sos_sys_open(name, mode);
+    int fd = sos_open(name, mode);
     if (fd == -1) {
         printf("Failed to open file %s\n", name);
     }
@@ -156,7 +156,7 @@ static int run_benchmark(char *name, benchmark_fn_t fn, uint32_t overhead,
             /* for each buf size, send the file over the network */
             for (int j = 0; j < LOOPS; j++) {
                 if (debug_mode) {
-                    if (fn == (benchmark_fn_t) sos_sys_write) {
+                    if (fn == (benchmark_fn_t) sos_write) {
                         /* if we're writing, write a magic val to the buffer */
                         assert(CLZ(sz) < sz);
                         buf[j * sz + CLZ(sz)] = (char) CLZ(sz);
@@ -171,11 +171,11 @@ static int run_benchmark(char *name, benchmark_fn_t fn, uint32_t overhead,
                     if (res != sz) {
                         printf("benchmark_fn did not %s full buf size, only %d/%zu\n",
                                name, res, sz);
-                        sos_sys_close(fd);
+                        sos_close(fd);
                         return -1;
                     }
                     /* if we're reading, check the magic val is correct */
-                    if (fn == sos_sys_read) {
+                    if (fn == sos_read) {
                         assert(buf[j * sz + CLZ(sz)] == (char) CLZ(sz));
                     }
                 }
@@ -212,7 +212,7 @@ static int run_benchmark(char *name, benchmark_fn_t fn, uint32_t overhead,
 
     }
 
-    sos_sys_close(fd);
+    sos_close(fd);
     return 0;
 }
 
@@ -251,19 +251,19 @@ int sos_benchmark(int debug_mode)
 
     sos_fprintf(results_fd, "[");
     /* benchmark write */
-    int res = run_benchmark("sos_sys_write", (benchmark_fn_t) sos_sys_write,
+    int res = run_benchmark("sos_write", (benchmark_fn_t) sos_write,
                             overhead, results_fd, debug_mode);
 
     if (res == -1) {
-        sos_sys_close(results_fd);
+        sos_close(results_fd);
         return -1;
     }
     sos_fprintf(results_fd, ",");
 
     /* benchmark read */
-    res = run_benchmark("sos_sys_read", sos_sys_read, overhead, results_fd,
+    res = run_benchmark("sos_read", sos_read, overhead, results_fd,
                         debug_mode);
     sos_fprintf(results_fd, "]");
-    sos_sys_close(results_fd);
+    sos_close(results_fd);
     return res;
 }

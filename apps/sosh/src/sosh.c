@@ -33,31 +33,6 @@
 static int in;
 static sos_stat_t sbuf;
 
-static size_t sos_debug_print(const void *vData, size_t count)
-{
-#ifdef CONFIG_DEBUG_BUILD
-    size_t i;
-    const char *realdata = vData;
-    for (i = 0; i < count; i++) {
-        seL4_DebugPutChar(realdata[i]);
-    }
-#endif
-    return count;
-}
-
-
-size_t sos_write(void *vData, size_t count)
-{
-    // use the content of tty test for this
-    return sos_debug_print(vData, count);
-}
-
-size_t sos_read(void *vData, size_t count)
-{
-    // use the content of tty test
-    return 0;
-}
-
 static void prstat(const char *name)
 {
     /* print out stat buf */
