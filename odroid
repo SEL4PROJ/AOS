@@ -4,7 +4,7 @@
 #
 # File management and control requests require `curl` to be installed.
 #
-# Connecting to the TTY or Serial interfaces requires a version of
+# Connecting to the Serial or Console interfaces requires a version of
 # `websocat` build with SSL support. (see
 # https://github.com/vi/websocat)
 #
@@ -13,9 +13,10 @@
 #     cargo install \
 #         --git https://github.com/vi/websocat.git \
 #         --features ssl
+#
 
 AUTH_TOKEN_FILE="$HOME/.aos_auth_token"
-AOS_DOMAIN="aos.cse.unsw.edu.au"
+AOS_DOMAIN="aos-2.cse.unsw.edu.au"
 AOS_HTTP_URL="https://${AOS_DOMAIN}"
 AOS_WS_URL="wss://${AOS_DOMAIN}"
 
@@ -24,7 +25,7 @@ if [ ! -e "${AUTH_TOKEN_FILE}" ]; then
 	chmod 600 "${AUTH_TOKEN_FILE}"
 	printf "Enter UNSW zID: "
 	read zid;
-	if ! curl -f -s -u "${zid}" "${AOS_HTTP_URL}/token" \
+	if ! curl -f -s -u -k "${zid}" "${AOS_HTTP_URL}/token" \
 		> "${AUTH_TOKEN_FILE}"; then
 		rm "${AUTH_TOKEN_FILE}"
 		echo "Failed to authenticate"
@@ -39,6 +40,7 @@ BEARER_HEADER=""
 http_query () {
 	path=$1; shift
 	curl \
+		-k \
 		-H "Authorization: Bearer $(cat "${AUTH_TOKEN_FILE}")" \
 		"${AOS_HTTP_URL}/${path}" \
 		"$@"
@@ -51,6 +53,7 @@ ws_stream () {
 		--binary -E \
 		--ping-interval 5 \
 		--ping-timeout 20 \
+		-k \
 		"$@" \
 		-H "Authorization: Bearer $(cat "${AUTH_TOKEN_FILE}")" \
 		-- - "${AOS_WS_URL}/${path}"
@@ -148,13 +151,13 @@ reconfigure () {
 }
 
 # Connect to the hardware UART stream
-tty () {
-	ws_stream tty "$@"
-}
-
-# Conntect to the UDP "serial" connection
 serial () {
 	ws_stream serial "$@"
+}
+
+# Connect to the network console
+netcon () {
+	ws_stream netcon "$@"
 }
 
 show_help () {
@@ -209,13 +212,13 @@ show_help () {
 	odroids
 	    List all of the odroids
 
-	tty
+	serial
 	    Connect to the ODroidC2's UART output (where
 	    \`seL4_DebugPutChar\` prints). This is read-only.
 
-	serial
-	    Connect to assigned ODroidC2's UDP serial interface
-	    interactively.
+	netcon
+		Connect to assigned ODroidC2's UDP network console
+		interface interactively.
 
 	help, --help, -h
 	    Show this help message.
@@ -240,8 +243,8 @@ case "${action}" in
 	"take") take "$@";;
 	"reconfigure") reconfigure;;
 	"odroids") odroids;;
-	"tty") tty "$@";;
 	"serial") serial "$@";;
+	"netcon") netcon "$@";;
 	"help") show_help;;
 	"--help") show_help;;
 	"-h") show_help;;
