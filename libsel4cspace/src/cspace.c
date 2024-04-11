@@ -356,7 +356,7 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
         bf_set_bit(bot_lvl->bf, bot_index);
         /* check if there are any free slots left in this cnode */
         if (bf_first_free(BITFIELD_SIZE(CNODE_SIZE_BITS), bot_lvl->bf) >=
-            (CNODE_SLOTS(CNODE_SIZE_BITS) - 1)) {
+            CNODE_SLOTS(CNODE_SIZE_BITS)) {
             /* nope - mark the top level as full */
             bf_set_bit(cspace->top_bf, top_index);
         }
@@ -386,8 +386,11 @@ void cspace_free_slot(cspace_t *cspace, seL4_CPtr cptr)
         }
         bf_clr_bit(cspace->top_bf, cptr);
     } else {
-        if (cptr > CNODE_SLOTS(CNODE_SIZE_BITS + cspace->top_lvl_size_bits)) {
+        seL4_CPtr limit =
+          CNODE_SLOTS(cspace->top_lvl_size_bits) * CNODE_SLOTS(CNODE_SIZE_BITS);
+        if (cptr > limit) {
             ZF_LOGE("Attempting to delete slot greater than cspace bounds");
+            return;
         }
 
         bf_clr_bit(cspace->top_bf, TOP_LVL_INDEX(cptr));
@@ -403,6 +406,27 @@ void cspace_free_slot(cspace_t *cspace, seL4_CPtr cptr)
             ZF_LOGE("Attempting to free unallocated cptr %lx!", cptr);
         }
     }
+}
+
+seL4_Word cspace_size(cspace_t *cspace)
+{
+  /* First empty top level slot */
+  seL4_Word nslots = bf_first_free(BITFIELD_SIZE(cspace->top_lvl_size_bits), cspace->top_bf);
+
+  if (cspace->two_level) {
+    /* Starting CPtr of the partially full node */
+    seL4_CPtr cptr = nslots << CNODE_SLOT_BITS(CNODE_SIZE_BITS);
+
+    /* Count the full slots: each contains a 2nd level cnode */
+    nslots *= CNODE_SLOTS(CNODE_SIZE_BITS);
+
+    if (NODE_INDEX(cptr) < cspace->n_bot_lvl_nodes &&
+        CNODE_INDEX(cptr) < cspace->bot_lvl_nodes[NODE_INDEX(cptr)]->n_cnodes) {
+      bot_lvl_t *cnode = &cspace->bot_lvl_nodes[NODE_INDEX(cptr)]->cnodes[CNODE_INDEX(cptr)];
+      nslots += bf_first_free(BITFIELD_SIZE(CNODE_SIZE_BITS), cnode->bf);
+    }
+  }
+  return nslots;
 }
 
 seL4_Error cspace_untyped_retype(cspace_t *cspace, seL4_CPtr ut, seL4_CPtr target,
