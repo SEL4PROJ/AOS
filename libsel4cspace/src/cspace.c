@@ -75,7 +75,6 @@ static void refill_watermark(cspace_t *cspace, seL4_Word *used)
         if (*used & BIT(i)) {
             cspace->watermark[i] = cspace_alloc_slot(cspace);
             ZF_LOGW_IF(cspace->watermark[i] == seL4_CapNull, "Cspace full in watermark function");
-            break;
         }
     }
 }
