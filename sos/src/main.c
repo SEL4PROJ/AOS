@@ -213,8 +213,8 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
     uintptr_t local_stack_bottom = SOS_SCRATCH - PAGE_SIZE_4K;
 
     /* find the vsyscall table */
-    uintptr_t sysinfo = *((uintptr_t *) elf_getSectionNamed(elf_file, "__vsyscall", NULL));
-    if (sysinfo == 0) {
+    uintptr_t *sysinfo = (uintptr_t *) elf_getSectionNamed(elf_file, "__vsyscall", NULL);
+    if (!sysinfo || !*sysinfo) {
         ZF_LOGE("could not find syscall table for c library");
         return 0;
     }
@@ -261,7 +261,7 @@ static uintptr_t init_process_stack(cspace_t *cspace, seL4_CPtr local_vspace, el
     index = stack_write(local_stack_top, index, PAGE_SIZE_4K);
     index = stack_write(local_stack_top, index, AT_PAGESZ);
 
-    index = stack_write(local_stack_top, index, sysinfo);
+    index = stack_write(local_stack_top, index, *sysinfo);
     index = stack_write(local_stack_top, index, AT_SYSINFO);
 
     index = stack_write(local_stack_top, index, PROCESS_IPC_BUFFER);
