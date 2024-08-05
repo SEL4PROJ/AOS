@@ -278,6 +278,7 @@ void sos_bootstrap(cspace_t *cspace, const seL4_BootInfo *bi)
         case seL4_CapIOSpace:
         case seL4_CapSMMUSIDControl:
         case seL4_CapSMMUCBControl:
+        case seL4_CapSMC:
             continue;
         }
         ZF_LOGV("cspace: moving cap %lu boot -> new cspace", i);
