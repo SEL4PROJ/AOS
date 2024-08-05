@@ -451,7 +451,7 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
     /* Ensure that the file is an elf file. */
     if (elf_newFile(elf_base, elf_size, &elf_file)) {
         ZF_LOGE("Invalid elf file");
-        return -1;
+        return false;
     }
 
     /* set up the stack */
