@@ -220,6 +220,14 @@ seL4_CPtr cspace_alloc_slot(cspace_t *c);
  */
 void cspace_free_slot(cspace_t *c, seL4_CPtr slot);
 
+/**
+ * Return the current size of the cspace in filled slots.
+ *
+ * @param c    The cspace
+ * @return The number of capabilities currently stored in the cspace.
+ */
+seL4_Word cspace_size(cspace_t *c);
+
 /* helper functions for cspace operations */
 
 /**
