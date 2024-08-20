@@ -67,6 +67,8 @@ set(KernelVerificationBuild OFF CACHE BOOL "" FORCE)
 set(KernelIRQReporting ON CACHE BOOL "" FORCE)
 set(KernelPrinting ON CACHE BOOL "" FORCE)
 set(KernelDebugBuild ON CACHE BOOL "" FORCE)
+set(HardwareDebugAPI ON CACHE BOOL "" FORCE)
+set(SosGDBSupport ON CACHE BOOL "" FORCE) # Enable debugger
 
 # enable our networking libs
 set(LibPicotcp ON CACHE BOOL "" FORCE)

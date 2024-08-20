@@ -52,6 +52,22 @@ void uart_putchar(char c)
     while (uart->status & UART_STATUS_TX_FIFO_FULL);
     uart->wfifo = c;
 
+    /* Escape special gdb-related characters */
+    if (c == '$' || c == '%' || c == '+' || c == '-') {
+        while (uart->status & UART_STATUS_TX_FIFO_FULL);
+        uart->wfifo = c;
+    }
+
+    if (c == '\n') {
+        uart_putchar('\r');
+    }
+}
+
+void uart_putchar_gdb(char c) {
+    /* spin until there is space in the buffer */
+    while (uart->status & UART_STATUS_TX_FIFO_FULL);
+    uart->wfifo = c;
+
     if (c == '\n') {
         uart_putchar('\r');
     }

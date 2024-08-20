@@ -41,6 +41,10 @@
 #include "tests.h"
 #include "utils.h"
 #include "threads.h"
+#include <sos/gen_config.h>
+#ifdef CONFIG_SOS_GDB_ENABLED
+#include "debugger.h"
+#endif /* CONFIG_SOS_GDB_ENABLED */
 
 #include <aos/vsyscall.h>
 
@@ -140,7 +144,7 @@ seL4_MessageInfo_t handle_syscall(UNUSED seL4_Word badge, UNUSED int num_args, b
 NORETURN void syscall_loop(seL4_CPtr ep)
 {
     seL4_CPtr reply;
-    
+
     /* Create reply object */
     ut_t *reply_ut = alloc_retype(&reply, seL4_ReplyObject, seL4_ReplyBits);
     if (reply_ut == NULL) {
@@ -560,6 +564,16 @@ NORETURN void *main_continued(UNUSED void *arg)
         IRQ_EP_BADGE,
         IRQ_IDENT_BADGE_BITS
     );
+
+#ifdef CONFIG_SOS_GDB_ENABLED
+    /* Create an endpoint that the GDB threads listens to */
+    seL4_CPtr recv_ep;
+    ut_t *ep_ut = alloc_retype(&recv_ep, seL4_EndpointObject, seL4_EndpointBits);
+    ZF_LOGF_IF(ep_ut == NULL, "Failed to create GDB endpoint");
+    init_threads(recv_ep, sched_ctrl_start, sched_ctrl_end);
+#else
+    init_threads(ipc_ep, sched_ctrl_start, sched_ctrl_end);
+#endif /* CONFIG_SOS_GDB_ENABLED */
     frame_table_init(&cspace, seL4_CapInitThreadVSpace);
 
     /* run sos initialisation tests */
@@ -574,6 +588,12 @@ NORETURN void *main_continued(UNUSED void *arg)
     printf("Network init\n");
     network_init(&cspace, timer_vaddr, ntfn);
 
+#ifdef CONFIG_SOS_GDB_ENABLED
+    /* Initialize the debugger */
+    seL4_Error err = debugger_init(&cspace, seL4_CapIRQControl, recv_ep);
+    ZF_LOGF_IF(err, "Failed to initialize debugger %d", err);
+#endif /* CONFIG_SOS_GDB_ENABLED */
+
     /* Initialises the timer */
     printf("Timer init\n");
     start_timer(timer_vaddr);
@@ -586,7 +606,6 @@ NORETURN void *main_continued(UNUSED void *arg)
     ZF_LOGF_IF(!success, "Failed to start first process");
 
     printf("\nSOS entering syscall loop\n");
-    init_threads(ipc_ep, sched_ctrl_start, sched_ctrl_end);
     syscall_loop(ipc_ep);
 }
 /*

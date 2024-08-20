@@ -17,17 +17,18 @@
  * Do not use the address range between SOS_DMA_VSTART and SOS_DMA_VEND */
 #define SOS_DMA_SIZE_BITS    (seL4_LargePageBits)
 
-#define SOS_SCRATCH          (0xA0000000)
-#define SOS_DEVICE_START     (0xB0000000)
-#define SOS_STACK            (0xC0000000)
-#define SOS_IPC_BUFFER       (0xD0000000)
-#define SOS_STACK_PAGES      100
-#define SOS_UT_TABLE         (0x8000000000)
-#define SOS_FRAME_TABLE      (0x8100000000)
-#define SOS_FRAME_DATA       (0x8200000000)
+#define SOS_SCRATCH          		(0xA0000000)
+#define SOS_DEVICE_START     		(0xB0000000)
+#define SOS_STACK            		(0xC0000000)
+#define SOS_IPC_BUFFER       		(0xD0000000)
+#define SOS_UART_RECV_BUF_ADDRESS 	(0xE0000000)
+#define SOS_STACK_PAGES      		100
+#define SOS_UT_TABLE         		(0x8000000000)
+#define SOS_FRAME_TABLE      		(0x8100000000)
+#define SOS_FRAME_DATA       		(0x8200000000)
 
 /* Constants for how SOS will layout the address space of any processes it loads up */
-#define PROCESS_STACK_TOP   (0x90000000)
-#define PROCESS_IPC_BUFFER  (0xA0000000)
-#define PROCESS_VMEM_START  (0xC0000000)
+#define PROCESS_STACK_TOP   		(0x90000000)
+#define PROCESS_IPC_BUFFER  		(0xA0000000)
+#define PROCESS_VMEM_START  		(0xC0000000)
 
