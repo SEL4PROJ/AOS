@@ -19,6 +19,7 @@
 #include <utils/zf_log.h>
 
 #include "irq.h"
+#include "debugger.h"
 
 typedef struct {
     seL4_Word irq;
@@ -73,6 +74,11 @@ int sos_register_irq_handler(
     seL4_IRQHandler *irq_handler
 )
 {
+    if (irq == VIRTUAL_UART_RECV_IRQ) {
+        ZF_LOGE("Only the debugger thread should register to the virtual UART recv IRQ");
+        return EINVAL;
+    }
+
     unsigned long ident_bit = alloc_irq_bit();
     if (ident_bit >= seL4_BadgeBits) {
         ZF_LOGE("Exhausted IRQ notificatoin bits for IRQ #%lu", irq);

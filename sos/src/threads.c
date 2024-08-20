@@ -16,13 +16,17 @@
 #include <sel4runtime.h>
 #include <aos/debug.h>
 #include <cspace/cspace.h>
+#include <sos/gen_config.h>
 
 #include "ut.h"
 #include "vmem_layout.h"
 #include "utils.h"
 #include "mapping.h"
+#ifdef CONFIG_SOS_GDB_ENABLED
+#include "debugger.h"
+#endif /* CONFIG_SOS_GDB_ENABLED */
 
-#define SOS_THREAD_PRIORITY     (0)
+#define SOS_THREAD_PRIORITY     (100)
 
 __thread sos_thread_t *current_thread = NULL;
 
@@ -75,21 +79,31 @@ int thread_resume(sos_thread_t *thread)
 }
 
 /* trampoline code for newly started thread */
-static void thread_trampoline(sos_thread_t *thread, thread_main_f *function, void *arg)
+static void thread_trampoline(sos_thread_t *thread, thread_main_f *function, void *arg, bool debugger_add)
 {
     sel4runtime_set_tls_base(thread->tls_base);
     seL4_SetIPCBuffer((seL4_IPCBuffer *) thread->ipc_buffer_vaddr);
     current_thread = thread;
+#ifdef CONFIG_SOS_GDB_ENABLED
+    if (debugger_add) {
+        debugger_register_thread(ipc_ep, thread->badge, thread->tcb);
+    }
+#endif /* CONFIG_SOS_GDB_ENABLED */
     function(arg);
+#ifdef CONFIG_SOS_GDB_ENABLED
+    if (debugger_add) {
+        debugger_deregister_thread(ipc_ep, thread->badge);
+    }
+#endif /* CONFIG_SOS_GDB_ENABLED */
     thread_suspend(thread);
 }
-
 /*
  * Spawn a new kernel (SOS) thread to execute function with arg
  *
  * TODO: fix memory leaks
  */
-sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, bool resume)
+sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, bool resume,
+                            seL4_Word prio, seL4_CPtr bound_ntfn, bool debugger_add)
 {
     /* we allocate stack for additional sos threads
      * on top of the stack for sos */
@@ -183,12 +197,46 @@ sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, 
      * In MCS, fault end point needed here should be in current thread's cspace.
      * NOTE this will use the unbadged ep unlike above, you might want to mint it with a badge
      * so you can identify which thread faulted in your fault handler */
-    err = seL4_TCB_SetSchedParams(new_thread->tcb, seL4_CapInitThreadTCB, seL4_MinPrio,
-                                  SOS_THREAD_PRIORITY, new_thread->sched_context,
-                                  new_thread->user_ep);
+    #ifdef CONFIG_SOS_GDB_ENABLED
+        if (debugger_add) {
+            if (badge & DEBUGGER_FAULT_BIT) {
+                ZF_LOGE("Badge conflicts with acceptable debugger format");
+                return NULL;
+            }
+
+            new_thread->fault_ep = cspace_alloc_slot(&cspace);
+            if (!new_thread->fault_ep) {
+                ZF_LOGE("Failed to allocate slot for fault endpoint");
+                return NULL;
+            }
+
+            err = cspace_mint(&cspace, new_thread->fault_ep, &cspace, ipc_ep, seL4_AllRights,
+                                        badge | DEBUGGER_FAULT_BIT);
+            if (err) {
+                ZF_LOGE("Failed to mint user ep");
+                return NULL;
+            }
+        } else {
+            new_thread->fault_ep = new_thread->user_ep;
+        }
+    #else
+        new_thread->fault_ep = new_thread->user_ep;
+    #endif
+    err = seL4_TCB_SetSchedParams(new_thread->tcb, seL4_CapInitThreadTCB, prio,
+                                  prio, new_thread->sched_context,
+                                  new_thread->fault_ep);
     if (err != seL4_NoError) {
         ZF_LOGE("Unable to set scheduling params");
         return NULL;
+    }
+
+    /* Bind a notification to the TCB */
+    if (bound_ntfn != seL4_CapNull) {
+        seL4_Error err = seL4_TCB_BindNotification(new_thread->tcb, bound_ntfn);
+        if (err != seL4_NoError) {
+            ZF_LOGE("Unable to bind notification");
+            return NULL;
+        }
     }
 
     /* Provide a name for the thread -- Helpful for debugging */
@@ -217,11 +265,12 @@ sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, 
         .x0 = (seL4_Word) new_thread,
         .x1 = (seL4_Word) function,
         .x2 = (seL4_Word) arg,
+        .x3 = (seL4_Word) debugger_add,
     };
     ZF_LOGD(resume ? "Starting new sos thread at %p\n"
             : "Created new thread starting at %p\n", (void *) context.pc);
     fflush(NULL);
-    err = seL4_TCB_WriteRegisters(new_thread->tcb, resume, 0, 6, &context);
+    err = seL4_TCB_WriteRegisters(new_thread->tcb, resume, 0, 7, &context);
     if (err != seL4_NoError) {
         ZF_LOGE("Failed to write registers");
         return NULL;
@@ -229,7 +278,25 @@ sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, 
     return new_thread;
 }
 
-sos_thread_t *spawn(thread_main_f function, void *arg, seL4_Word badge)
+/*
+ * Spawn the debugger thread. Should only be called once in debugger_init()
+ */
+sos_thread_t *debugger_spawn(thread_main_f function, void *arg, seL4_Word badge, seL4_CPtr bound_ntfn)
 {
-    return thread_create(function, arg, badge, true);
+    return thread_create(function, arg, badge, true, seL4_MaxPrio, bound_ntfn, false);
+}
+
+
+/*
+ * Spawn a SOS worker thread
+ *
+ * The debugger_add arg determines if this thread is registered with GDB. If GDB is not enabled,
+ * it does nothing.
+ *
+ * Ensure that the badge you provide is unique (in that no other active thread has it). If you
+ * do not ensure this, you will probably see some weird behaviour in GDB.
+ */
+sos_thread_t *spawn(thread_main_f function, void *arg, seL4_Word badge, bool debugger_add)
+{
+    return thread_create(function, arg, badge, true, SOS_THREAD_PRIORITY, 0, debugger_add);
 }

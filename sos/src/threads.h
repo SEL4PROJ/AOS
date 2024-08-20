@@ -23,6 +23,7 @@ typedef struct {
     seL4_CPtr tcb;
 
     seL4_CPtr user_ep;
+    seL4_CPtr fault_ep;
     ut_t *ipc_buffer_ut;
     seL4_CPtr ipc_buffer;
     seL4_Word ipc_buffer_vaddr;
@@ -42,7 +43,9 @@ typedef void thread_main_f(void *);
 extern __thread sos_thread_t *current_thread;
 
 void init_threads(seL4_CPtr ep, seL4_CPtr sched_ctrl_start_, seL4_CPtr sched_ctrl_end_);
-sos_thread_t *spawn(thread_main_f function, void *arg, seL4_Word badge);
-sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, bool resume);
+sos_thread_t *spawn(thread_main_f function, void *arg, seL4_Word badge, bool debugger_add);
+sos_thread_t *debugger_spawn(thread_main_f function, void *arg, seL4_Word badge, seL4_CPtr bound_ntfn);
+sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, bool resume, seL4_Word prio, 
+                            seL4_CPtr bound_ntfn, bool debugger_add);
 int thread_suspend(sos_thread_t *thread);
 int thread_resume(sos_thread_t *thread);

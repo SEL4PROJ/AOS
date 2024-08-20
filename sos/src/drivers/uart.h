@@ -16,3 +16,4 @@
 void uart_init(cspace_t *cspace);
 /* output a single chart on the uart device */
 void uart_putchar(char c);
+void uart_putchar_gdb(char c);
