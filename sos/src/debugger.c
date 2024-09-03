@@ -24,35 +24,35 @@ static char t_invocation_stack[STACK_SIZE];
 static bool in_resume_state = false;
 
 struct pending_registration {
-	uint64_t id;
-	seL4_CPtr tcb;
+    uint64_t id;
+    seL4_CPtr tcb;
 };
 
 struct pending_registrations {
-	int head;
-	int tail;
-	struct pending_registration pending[MAX_THREADS];
+    int head;
+    int tail;
+    struct pending_registration pending[MAX_THREADS];
 };
 
 struct pending_registrations pending_registrations = {0};
 
 bool any_pending_registrations() {
-	return (pending_registrations.tail - pending_registrations.head) > 0;
+    return (pending_registrations.tail - pending_registrations.head) > 0;
 }
 
 void add_pending_registration(uint64_t id, seL4_CPtr tcb) {
-	pending_registrations.pending[pending_registrations.tail % MAX_THREADS] =
-		(struct pending_registration) {
-			.id = id,
-			.tcb = tcb
-	};
-	pending_registrations.tail++;
+    pending_registrations.pending[pending_registrations.tail % MAX_THREADS] =
+        (struct pending_registration) {
+            .id = id,
+            .tcb = tcb
+    };
+    pending_registrations.tail++;
 }
 
 struct pending_registration get_pending_registration() {
-	struct pending_registration ret = pending_registrations.pending[pending_registrations.head % MAX_THREADS];
-	pending_registrations.head++;
-	return ret;
+    struct pending_registration ret = pending_registrations.pending[pending_registrations.head % MAX_THREADS];
+    pending_registrations.head++;
+    return ret;
 }
 
 void _putchar(char character) {
@@ -74,8 +74,8 @@ typedef enum event_state {
 cothread_t t_event, t_main, t_invocation;
 
 typedef struct debugger_data {
-	seL4_CPtr ep;
-	seL4_CPtr reply;
+    seL4_CPtr ep;
+    seL4_CPtr reply;
 } debugger_data_t;
 
 static debugger_data_t debugger_data = {};
@@ -93,20 +93,20 @@ struct UARTRecvBuf *uart_recv_buf = 0;
 gdb_inferior_t *sos_inferior = NULL;
 
 void suspend_system() {
-	for (int i = 0; i < MAX_THREADS; i++) {
-		if (sos_inferior->threads[i].enabled) {
-			seL4_TCB_Suspend(sos_inferior->threads[i].tcb);
-		}
-	}
+    for (int i = 0; i < MAX_THREADS; i++) {
+        if (sos_inferior->threads[i].enabled) {
+            seL4_TCB_Suspend(sos_inferior->threads[i].tcb);
+        }
+    }
 }
 
 void resume_system() {
-	for (int i = 0; i < MAX_THREADS; i++) {
-		if (!sos_inferior->threads[i].enabled) continue;
-		if (sos_inferior->threads[i].wakeup) {
-			seL4_TCB_Resume(sos_inferior->threads[i].tcb);
-		}
-	}
+    for (int i = 0; i < MAX_THREADS; i++) {
+        if (!sos_inferior->threads[i].enabled) continue;
+        if (sos_inferior->threads[i].wakeup) {
+            seL4_TCB_Resume(sos_inferior->threads[i].tcb);
+        }
+    }
 }
 
 char gdb_get_char(event_state_t new_state) {
@@ -117,13 +117,13 @@ char gdb_get_char(event_state_t new_state) {
     }
 
     char c = uart_recv_buf->data[uart_recv_buf->tail % 2048];
-	uart_recv_buf->tail++;
+    uart_recv_buf->tail++;
 
     return c;
 }
 
 void gdb_put_char(char c) {
-	uart_putchar_gdb(c);
+    uart_putchar_gdb(c);
 }
 
 char *get_packet(event_state_t new_state) {
@@ -224,35 +224,35 @@ void notify_gdb() {
 
 
 bool handle_debugger_register(seL4_Word badge, seL4_CPtr tcb) {
-	/* Register the thread as an inferior */
-	gdb_thread_t *thread = gdb_register_thread(sos_inferior, badge, tcb);
-	if (!thread) {
-		printf("GDB: Failed to register thread. You have too many active concurrent threads\n");
-		return false;
-	}
+    /* Register the thread as an inferior */
+    gdb_thread_t *thread = gdb_register_thread(sos_inferior, badge, tcb);
+    if (!thread) {
+        printf("GDB: Failed to register thread. You have too many active concurrent threads\n");
+        return false;
+    }
 
-	if (!detached) {
-		gdb_thread_spawn(thread, output);
-		/* We suspend the system here (after adding the new thread).
-		   This is fine on single-core. */
-		suspend_system();
-		t_invocation = co_derive((void *) t_invocation_stack, STACK_SIZE, notify_gdb);
-		co_switch(t_invocation);
-	}
+    if (!detached) {
+        gdb_thread_spawn(thread, output);
+        /* We suspend the system here (after adding the new thread).
+           This is fine on single-core. */
+        suspend_system();
+        t_invocation = co_derive((void *) t_invocation_stack, STACK_SIZE, notify_gdb);
+        co_switch(t_invocation);
+    }
 
-	return true;
+    return true;
 }
 
 void handle_debugger_deregister(gdb_thread_t *thread) {
 
-	/* Remove the thread from GDB */
-	gdb_thread_exit(thread, output);
+    /* Remove the thread from GDB */
+    gdb_thread_exit(thread, output);
 
-	if (!detached) {
-		suspend_system();
-		t_invocation = co_derive((void *) t_invocation_stack, STACK_SIZE, notify_gdb);
-		co_switch(t_invocation);
-	}
+    if (!detached) {
+        suspend_system();
+        t_invocation = co_derive((void *) t_invocation_stack, STACK_SIZE, notify_gdb);
+        co_switch(t_invocation);
+    }
 }
 
 static void gdb_event_loop() {
@@ -269,24 +269,24 @@ static void gdb_event_loop() {
         resume = gdb_handle_packet(input, output, &detached);
 
         if (!resume || detached) {
-	        put_packet(output, eventState_waitingForInputEventLoop);
+            put_packet(output, eventState_waitingForInputEventLoop);
         }
 
         if (resume) {
-        	if (any_pending_registrations()) {
-        		struct pending_registration pr = get_pending_registration();
-				bool success = handle_debugger_register(pr.id, pr.tcb);
-				if (!success) {
-					while (any_pending_registrations()) {
-						get_pending_registration();
-					}
-					resume_system();
-					in_resume_state = true;
-				}
-        	} else {
-	            resume_system();
-	            in_resume_state = true;
-        	}
+            if (any_pending_registrations()) {
+                struct pending_registration pr = get_pending_registration();
+                bool success = handle_debugger_register(pr.id, pr.tcb);
+                if (!success) {
+                    while (any_pending_registrations()) {
+                        get_pending_registration();
+                    }
+                    resume_system();
+                    in_resume_state = true;
+                }
+            } else {
+                resume_system();
+                in_resume_state = true;
+            }
         }
     }
 }
@@ -295,155 +295,155 @@ static void gdb_event_loop() {
 #define LABEL_DEBUGGER_DEREGISTER 2
 
 void seL4_event_loop() {
-	bool have_reply = false;
-	seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
+    bool have_reply = false;
+    seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
 
-	while (1) {
-		seL4_Word badge = 0;
-		seL4_MessageInfo_t message;
+    while (1) {
+        seL4_Word badge = 0;
+        seL4_MessageInfo_t message;
 
-		if (have_reply) {
-			message = seL4_ReplyRecv(debugger_data.ep, reply_msg, &badge, debugger_data.reply);
-		} else {
-			message = seL4_Recv(debugger_data.ep, &badge, debugger_data.reply);
-		}
+        if (have_reply) {
+            message = seL4_ReplyRecv(debugger_data.ep, reply_msg, &badge, debugger_data.reply);
+        } else {
+            message = seL4_Recv(debugger_data.ep, &badge, debugger_data.reply);
+        }
 
-		seL4_Word label = seL4_MessageInfo_get_label(message);
+        seL4_Word label = seL4_MessageInfo_get_label(message);
 
-		if (badge & IRQ_BIT) {
-			/* Deal with a UART recv notification */
-		    if (state == eventState_waitingForInputEventLoop) {
-        		state = eventState_none;
-        		co_switch(t_main);
-    		} else if (state == eventState_waitingForInputInvocation) {
-        		state = eventState_none;
-        		co_switch(t_invocation);
-    		}
-    		have_reply = false;
-		} else if (badge & DEBUGGER_FAULT_BIT) {
-			/* Deal with a fault from a debugee thread */
-			seL4_Word reply_mr = 0;
-			seL4_Word id = badge & ~DEBUGGER_FAULT_BIT;
+        if (badge & IRQ_BIT) {
+            /* Deal with a UART recv notification */
+            if (state == eventState_waitingForInputEventLoop) {
+                state = eventState_none;
+                co_switch(t_main);
+            } else if (state == eventState_waitingForInputInvocation) {
+                state = eventState_none;
+                co_switch(t_invocation);
+            }
+            have_reply = false;
+        } else if (badge & DEBUGGER_FAULT_BIT) {
+            /* Deal with a fault from a debugee thread */
+            seL4_Word reply_mr = 0;
+            seL4_Word id = badge & ~DEBUGGER_FAULT_BIT;
 
-    		if (label != seL4_Fault_DebugException) {
-	    		debug_print_fault(message, "");
-    		}
-    		have_reply = false;
+            if (label != seL4_Fault_DebugException) {
+                debug_print_fault(message, "");
+            }
+            have_reply = false;
 
-			if (!detached) {
-	    		suspend_system();
+            if (!detached) {
+                suspend_system();
 
-				gdb_thread_t *faulting_thread = NULL;
-				for (int i = 0; i < 256; i++) {
-					if (id == sos_inferior->threads[i].id) {
-						faulting_thread = &sos_inferior->threads[i];
-						break;
-					}
-				}
+                gdb_thread_t *faulting_thread = NULL;
+                for (int i = 0; i < 256; i++) {
+                    if (id == sos_inferior->threads[i].id) {
+                        faulting_thread = &sos_inferior->threads[i];
+                        break;
+                    }
+                }
 
-				in_resume_state = false;
-				have_reply = gdb_handle_fault(faulting_thread, label, &reply_mr, output);
-				t_invocation = co_derive((void *) t_invocation_stack, STACK_SIZE, notify_gdb);
-				co_switch(t_invocation);
+                in_resume_state = false;
+                have_reply = gdb_handle_fault(faulting_thread, label, &reply_mr, output);
+                t_invocation = co_derive((void *) t_invocation_stack, STACK_SIZE, notify_gdb);
+                co_switch(t_invocation);
 
-				if (have_reply) {
-					reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
-				}
-			}
-		} else {
-			/* Deal with a thread registration/deregistration */
-			assert(badge == 0);
-			if (label == LABEL_DEBUGGER_REGISTER) {
-				seL4_Word id = seL4_GetMR(0);
-				seL4_CPtr tcb = seL4_GetMR(1);
+                if (have_reply) {
+                    reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
+                }
+            }
+        } else {
+            /* Deal with a thread registration/deregistration */
+            assert(badge == 0);
+            if (label == LABEL_DEBUGGER_REGISTER) {
+                seL4_Word id = seL4_GetMR(0);
+                seL4_CPtr tcb = seL4_GetMR(1);
 
-				int i = 0;
-				for (; i < MAX_THREADS; i++) {
-					if (id == sos_inferior->threads[i].id) {
-						break;
-					}
-				}
+                int i = 0;
+                for (; i < MAX_THREADS; i++) {
+                    if (id == sos_inferior->threads[i].id) {
+                        break;
+                    }
+                }
 
-				/* We only register if this ID is not already registered
-				 *
-				 * We do this check for two reasons:
-				 * 	1. TCB_Suspend() cancels an in-progress IPC, and when the thread is resumed, it
-				 *     will attempt the IPC again, which can result in duplicate entries. In
-				 *     particular, this will happen for the thread that is calling
-				 *     debugger_register, meaning that it will be called twice for every thread as
-				 *     handle_debugger_register() suspends the calling thread.
-				 *  2. If you accidentally provide two identical IDs, this can cause issues
-				 *     where GDB gets confused. Adding a print would help debug this, but it
-				 * 	   would be noisy because of reason 1.
-				 */
-				if (i == MAX_THREADS && in_resume_state) {
-					in_resume_state = false;
-					handle_debugger_register(id, tcb);
-				} else if (i == MAX_THREADS && !in_resume_state) {
-					seL4_TCB_Suspend(tcb);
-					add_pending_registration(id, tcb);
-				}
+                /* We only register if this ID is not already registered
+                 *
+                 * We do this check for two reasons:
+                 *  1. TCB_Suspend() cancels an in-progress IPC, and when the thread is resumed, it
+                 *     will attempt the IPC again, which can result in duplicate entries. In
+                 *     particular, this will happen for the thread that is calling
+                 *     debugger_register, meaning that it will be called twice for every thread as
+                 *     handle_debugger_register() suspends the calling thread.
+                 *  2. If you accidentally provide two identical IDs, this can cause issues
+                 *     where GDB gets confused. Adding a print would help debug this, but it
+                 *     would be noisy because of reason 1.
+                 */
+                if (i == MAX_THREADS && in_resume_state) {
+                    in_resume_state = false;
+                    handle_debugger_register(id, tcb);
+                } else if (i == MAX_THREADS && !in_resume_state) {
+                    seL4_TCB_Suspend(tcb);
+                    add_pending_registration(id, tcb);
+                }
 
-			} else if (label == LABEL_DEBUGGER_DEREGISTER) {
-				seL4_Word id = seL4_GetMR(0);
+            } else if (label == LABEL_DEBUGGER_DEREGISTER) {
+                seL4_Word id = seL4_GetMR(0);
 
-				int i = 0;
-				for (; i < MAX_THREADS; i++) {
-					if (id == sos_inferior->threads[i].id) {
-						break;
-					}
-				}
+                int i = 0;
+                for (; i < MAX_THREADS; i++) {
+                    if (id == sos_inferior->threads[i].id) {
+                        break;
+                    }
+                }
 
-				if (i != MAX_THREADS) {
-					handle_debugger_deregister(&sos_inferior->threads[i]);
-				}
-			}
+                if (i != MAX_THREADS) {
+                    handle_debugger_deregister(&sos_inferior->threads[i]);
+                }
+            }
 
-			reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
-			have_reply = true;
-		}
-	}
+            reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
+            have_reply = true;
+        }
+    }
 }
 
 void debugger_main(UNUSED void *data) {
 
-	/* Register the main GDB thread */
-	sos_inferior = gdb_register_inferior(0, seL4_CapInitThreadVSpace);
-	gdb_register_thread(sos_inferior, 0, seL4_CapInitThreadTCB);
+    /* Register the main GDB thread */
+    sos_inferior = gdb_register_inferior(0, seL4_CapInitThreadVSpace);
+    gdb_register_thread(sos_inferior, 0, seL4_CapInitThreadTCB);
 
-	/* Suspend the threads in the system */
-	suspend_system();
+    /* Suspend the threads in the system */
+    suspend_system();
 
-	printf("Awaiting GDB connection...\n");
+    printf("Awaiting GDB connection...\n");
 
-	t_main = co_active();
-	t_event = co_derive((void *) t_main_stack, STACK_SIZE, seL4_event_loop);
+    t_main = co_active();
+    t_event = co_derive((void *) t_main_stack, STACK_SIZE, seL4_event_loop);
 
-	gdb_event_loop();
+    gdb_event_loop();
 }
 
 /*
  * Register a thread into GDB
  */
 void debugger_register_thread(seL4_CPtr ep, seL4_Word badge, seL4_CPtr tcb) {
-	seL4_MessageInfo_t msginfo = seL4_MessageInfo_new(LABEL_DEBUGGER_REGISTER, 0, 0, 2);
-	seL4_SetMR(0, badge);
-	seL4_SetMR(1, tcb);
+    seL4_MessageInfo_t msginfo = seL4_MessageInfo_new(LABEL_DEBUGGER_REGISTER, 0, 0, 2);
+    seL4_SetMR(0, badge);
+    seL4_SetMR(1, tcb);
 
-	/* Somewhat annoyingly, this call gets executed twice as this thread must be suspended,
-	   which cancels the call operation and has it be reattempted when the thread is resumed.
-	   If you are not careful with writing the debugger thread to handle this gracefully, it
-	   can result in an infinite loop */
-	msginfo = seL4_Call(ep, msginfo);
+    /* Somewhat annoyingly, this call gets executed twice as this thread must be suspended,
+       which cancels the call operation and has it be reattempted when the thread is resumed.
+       If you are not careful with writing the debugger thread to handle this gracefully, it
+       can result in an infinite loop */
+    msginfo = seL4_Call(ep, msginfo);
 }
 
 /*
  * Deregister a thread from GDB
  */
 void debugger_deregister_thread(seL4_CPtr ep, seL4_Word badge) {
-	seL4_MessageInfo_t msginfo = seL4_MessageInfo_new(LABEL_DEBUGGER_DEREGISTER, 0, 0, 1);
-	seL4_SetMR(0, badge);
-	msginfo = seL4_Call(ep, msginfo);
+    seL4_MessageInfo_t msginfo = seL4_MessageInfo_new(LABEL_DEBUGGER_DEREGISTER, 0, 0, 1);
+    seL4_SetMR(0, badge);
+    msginfo = seL4_Call(ep, msginfo);
 }
 
 /*
@@ -455,89 +455,89 @@ void debugger_deregister_thread(seL4_CPtr ep, seL4_Word badge) {
  * TODO: fix memory leaks
  */
 seL4_Error debugger_init(cspace_t *cspace, seL4_IRQControl irq_control, seL4_CPtr recv_ep) {
-	/* Create a reply object */
-	seL4_CPtr reply;
-	ut_t *reply_ut = alloc_retype(&reply, seL4_ReplyObject, seL4_ReplyBits);
-	if (reply_ut == NULL) {
-		return ENOMEM;
-	}
+    /* Create a reply object */
+    seL4_CPtr reply;
+    ut_t *reply_ut = alloc_retype(&reply, seL4_ReplyObject, seL4_ReplyBits);
+    if (reply_ut == NULL) {
+        return ENOMEM;
+    }
 
-	/* Create a notification object for binding to the GDB thread */
-	seL4_CPtr bound_ntfn;
-	ut_t *ntfn_ut = alloc_retype(&bound_ntfn, seL4_NotificationObject, seL4_NotificationBits);
-	if (ntfn_ut == NULL) {
-		return ENOMEM;
-	}
+    /* Create a notification object for binding to the GDB thread */
+    seL4_CPtr bound_ntfn;
+    ut_t *ntfn_ut = alloc_retype(&bound_ntfn, seL4_NotificationObject, seL4_NotificationBits);
+    if (ntfn_ut == NULL) {
+        return ENOMEM;
+    }
 
-	/* Create the IRQ handler cap for the virtual UART recv interrupt */
-	seL4_CPtr irq_handler = cspace_alloc_slot(cspace);
-	if (irq_handler == 0) {
-		return ENOMEM;
-	}
+    /* Create the IRQ handler cap for the virtual UART recv interrupt */
+    seL4_CPtr irq_handler = cspace_alloc_slot(cspace);
+    if (irq_handler == 0) {
+        return ENOMEM;
+    }
 
-	seL4_Error err = cspace_irq_control_get(cspace, irq_handler, irq_control,
-											VIRTUAL_UART_RECV_IRQ, false);
-	if (err) {
-		return err;
-	}
+    seL4_Error err = cspace_irq_control_get(cspace, irq_handler, irq_control,
+                                            VIRTUAL_UART_RECV_IRQ, false);
+    if (err) {
+        return err;
+    }
 
-	/* Mint a badged notification cap for the IRQ to be delivered using */
-	seL4_Word badge = IRQ_BIT | BIT(0);
-	seL4_CPtr badged_ntfn = cspace_alloc_slot(cspace);
-	if (badged_ntfn == 0) {
-		return ENOMEM;
-	}
+    /* Mint a badged notification cap for the IRQ to be delivered using */
+    seL4_Word badge = IRQ_BIT | BIT(0);
+    seL4_CPtr badged_ntfn = cspace_alloc_slot(cspace);
+    if (badged_ntfn == 0) {
+        return ENOMEM;
+    }
 
-	err = cspace_mint(cspace, badged_ntfn, cspace, bound_ntfn,
-				seL4_CanWrite, badge);
-	if (err) {
-		return err;
-	}
+    err = cspace_mint(cspace, badged_ntfn, cspace, bound_ntfn,
+                seL4_CanWrite, badge);
+    if (err) {
+        return err;
+    }
 
-	/* Set the IRQ to be delivered to this notification */
-	err = seL4_IRQHandler_SetNotification(irq_handler, badged_ntfn);
-	if (err) {
-		return err;
-	}
+    /* Set the IRQ to be delivered to this notification */
+    err = seL4_IRQHandler_SetNotification(irq_handler, badged_ntfn);
+    if (err) {
+        return err;
+    }
 
-	/* Map in the shared ring buffer with the kernel for
-	   receiving UART data */
-	err = map_frame(cspace, seL4_CapUARTRecvBuffer, seL4_CapInitThreadVSpace,
-							   SOS_UART_RECV_BUF_ADDRESS, seL4_AllRights,
-							   seL4_ARM_Default_VMAttributes);
-	if (err) {
-		return err;
-	}
-	uart_recv_buf = (struct UARTRecvBuf *) SOS_UART_RECV_BUF_ADDRESS;
+    /* Map in the shared ring buffer with the kernel for
+       receiving UART data */
+    err = map_frame(cspace, seL4_CapUARTRecvBuffer, seL4_CapInitThreadVSpace,
+                               SOS_UART_RECV_BUF_ADDRESS, seL4_AllRights,
+                               seL4_ARM_Default_VMAttributes);
+    if (err) {
+        return err;
+    }
+    uart_recv_buf = (struct UARTRecvBuf *) SOS_UART_RECV_BUF_ADDRESS;
 
-	/* Mint a badged fault endpoint cap for the main SOS thread */
-	badge = DEBUGGER_FAULT_BIT;
-	seL4_CPtr badged_fault_ep = cspace_alloc_slot(cspace);
-	if (badged_fault_ep == 0) {
-		return ENOMEM;
-	}
-	err = cspace_mint(cspace, badged_fault_ep, cspace, recv_ep, seL4_AllRights, badge);
-	if (err) {
-		return err;
-	}
+    /* Mint a badged fault endpoint cap for the main SOS thread */
+    badge = DEBUGGER_FAULT_BIT;
+    seL4_CPtr badged_fault_ep = cspace_alloc_slot(cspace);
+    if (badged_fault_ep == 0) {
+        return ENOMEM;
+    }
+    err = cspace_mint(cspace, badged_fault_ep, cspace, recv_ep, seL4_AllRights, badge);
+    if (err) {
+        return err;
+    }
 
-	/* Set the priority of the main SOS thread to maxprio - 1 and
-   	   set its fault handler to be a badged copy of the GDB recv endpoint */
-	 err = seL4_TCB_SetSchedParams(seL4_CapInitThreadTCB, seL4_CapInitThreadTCB, seL4_MaxPrio,
-	 							   seL4_MaxPrio - 1, seL4_CapInitThreadSC, badged_fault_ep);
+    /* Set the priority of the main SOS thread to maxprio - 1 and
+       set its fault handler to be a badged copy of the GDB recv endpoint */
+     err = seL4_TCB_SetSchedParams(seL4_CapInitThreadTCB, seL4_CapInitThreadTCB, seL4_MaxPrio,
+                                   seL4_MaxPrio - 1, seL4_CapInitThreadSC, badged_fault_ep);
 
-	/* Start the debugger thread */
-	debugger_data = (debugger_data_t) {
-		.ep = recv_ep,
-		.reply = reply
-	};
+    /* Start the debugger thread */
+    debugger_data = (debugger_data_t) {
+        .ep = recv_ep,
+        .reply = reply
+    };
 
-	debugger_thread = debugger_spawn(debugger_main, NULL, 0, bound_ntfn);
-	if (debugger_thread == NULL) {
-		return ENOMEM;
-	}
+    debugger_thread = debugger_spawn(debugger_main, NULL, 0, bound_ntfn);
+    if (debugger_thread == NULL) {
+        return ENOMEM;
+    }
 
-	return seL4_NoError;
+    return seL4_NoError;
 }
 
 #endif /* CONFIG_SOS_GDB_ENABLED */
