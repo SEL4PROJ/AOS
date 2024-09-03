@@ -5,12 +5,16 @@
 #include <cspace/cspace.h>
 #include <gdb.h>
 #include <libco.h>
+#include <aos/debug.h>
 
 #include "threads.h"
 #include "vmem_layout.h"
 #include "utils.h"
 #include "debugger.h"
 #include "mapping.h"
+#include "drivers/uart.h"
+#include "util.h"
+
 
 #define IRQ_BIT BIT(63)
 
@@ -401,7 +405,7 @@ void seL4_event_loop() {
 	}
 }
 
-void debugger_main(void *data) {
+void debugger_main(UNUSED void *data) {
 
 	/* Register the main GDB thread */
 	sos_inferior = gdb_register_inferior(0, seL4_CapInitThreadVSpace);
@@ -504,7 +508,7 @@ seL4_Error debugger_init(cspace_t *cspace, seL4_IRQControl irq_control, seL4_CPt
 	if (err) {
 		return err;
 	}
-	uart_recv_buf = SOS_UART_RECV_BUF_ADDRESS;
+	uart_recv_buf = (struct UARTRecvBuf *) SOS_UART_RECV_BUF_ADDRESS;
 
 	/* Mint a badged fault endpoint cap for the main SOS thread */
 	badge = DEBUGGER_FAULT_BIT;
