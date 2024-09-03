@@ -23,6 +23,7 @@ add_subdirectory(sos)
 # add libraries
 add_subdirectory(libaos)
 add_subdirectory(libclock)
+add_subdirectory(libco)
 add_subdirectory(libethernet)
 add_subdirectory(libsel4cspace)
 add_subdirectory(libnetworkconsole)
