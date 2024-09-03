@@ -42,7 +42,7 @@ typedef void thread_main_f(void *);
 
 extern __thread sos_thread_t *current_thread;
 
-void init_threads(seL4_CPtr ep, seL4_CPtr sched_ctrl_start_, seL4_CPtr sched_ctrl_end_);
+void init_threads(seL4_CPtr ipc_ep, seL4_CPtr fault_ep, seL4_CPtr sched_ctrl_start_, seL4_CPtr sched_ctrl_end_);
 sos_thread_t *spawn(thread_main_f function, void *arg, seL4_Word badge, bool debugger_add);
 sos_thread_t *debugger_spawn(thread_main_f function, void *arg, seL4_Word badge, seL4_CPtr bound_ntfn);
 sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, bool resume, seL4_Word prio, 

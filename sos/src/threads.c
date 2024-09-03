@@ -34,10 +34,13 @@ static seL4_CPtr sched_ctrl_start;
 static seL4_CPtr sched_ctrl_end;
 
 static seL4_CPtr ipc_ep;
+static seL4_CPtr fault_ep;
 
-void init_threads(seL4_CPtr ep, seL4_CPtr sched_ctrl_start_, seL4_CPtr sched_ctrl_end_)
+
+void init_threads(seL4_CPtr _ipc_ep, seL4_CPtr _fault_ep, seL4_CPtr sched_ctrl_start_, seL4_CPtr sched_ctrl_end_)
 {
-    ipc_ep = ep;
+    ipc_ep = _ipc_ep;
+    fault_ep = _fault_ep;
     sched_ctrl_start = sched_ctrl_start_;
     sched_ctrl_end = sched_ctrl_end_;
 }
@@ -84,15 +87,10 @@ static void thread_trampoline(sos_thread_t *thread, thread_main_f *function, voi
     sel4runtime_set_tls_base(thread->tls_base);
     seL4_SetIPCBuffer((seL4_IPCBuffer *) thread->ipc_buffer_vaddr);
     current_thread = thread;
-#ifdef CONFIG_SOS_GDB_ENABLED
-    if (debugger_add) {
-        debugger_register_thread(ipc_ep, thread->badge, thread->tcb);
-    }
-#endif /* CONFIG_SOS_GDB_ENABLED */
     function(arg);
 #ifdef CONFIG_SOS_GDB_ENABLED
     if (debugger_add) {
-        debugger_deregister_thread(ipc_ep, thread->badge);
+        debugger_deregister_thread(fault_ep, thread->badge);
     }
 #endif /* CONFIG_SOS_GDB_ENABLED */
     thread_suspend(thread);
@@ -193,12 +191,13 @@ sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, 
         return NULL;
     }
 
-    /* bind sched context, set fault endpoint and priority
-     * In MCS, fault end point needed here should be in current thread's cspace.
-     * NOTE this will use the unbadged ep unlike above, you might want to mint it with a badge
-     * so you can identify which thread faulted in your fault handler */
-    #ifdef CONFIG_SOS_GDB_ENABLED
+        /* bind sched context, set fault endpoint and priority
+         * In MCS, fault end point needed here should be in current thread's cspace.
+         * NOTE this will use the unbadged ep unlike above, you might want to mint it with a badge
+         * so you can identify which thread faulted in your fault handler */
+#ifdef CONFIG_SOS_GDB_ENABLED
         if (debugger_add) {
+            /* Create a badged fault endpoint cap  */
             if (badge & DEBUGGER_FAULT_BIT) {
                 ZF_LOGE("Badge conflicts with acceptable debugger format");
                 return NULL;
@@ -210,7 +209,7 @@ sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, 
                 return NULL;
             }
 
-            err = cspace_mint(&cspace, new_thread->fault_ep, &cspace, ipc_ep, seL4_AllRights,
+            err = cspace_mint(&cspace, new_thread->fault_ep, &cspace, fault_ep, seL4_AllRights,
                                         badge | DEBUGGER_FAULT_BIT);
             if (err) {
                 ZF_LOGE("Failed to mint user ep");
@@ -219,9 +218,9 @@ sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, 
         } else {
             new_thread->fault_ep = new_thread->user_ep;
         }
-    #else
+#else
         new_thread->fault_ep = new_thread->user_ep;
-    #endif
+#endif
     err = seL4_TCB_SetSchedParams(new_thread->tcb, seL4_CapInitThreadTCB, prio,
                                   prio, new_thread->sched_context,
                                   new_thread->fault_ep);
@@ -275,6 +274,14 @@ sos_thread_t *thread_create(thread_main_f function, void *arg, seL4_Word badge, 
         ZF_LOGE("Failed to write registers");
         return NULL;
     }
+
+    /* Register the thread with GDB */
+#ifdef CONFIG_SOS_GDB_ENABLED
+    if (debugger_add) {
+        debugger_register_thread(fault_ep, new_thread->badge, new_thread->tcb);
+    }
+#endif
+
     return new_thread;
 }
 
