@@ -15,8 +15,9 @@
 #include "drivers/uart.h"
 #include "util.h"
 
-
 #define IRQ_BIT BIT(63)
+#define LABEL_DEBUGGER_REGISTER 1
+#define LABEL_DEBUGGER_DEREGISTER 2
 
 #define STACK_SIZE 4096
 static char t_main_stack[STACK_SIZE];
@@ -50,15 +51,19 @@ static sos_thread_t *debugger_thread = NULL;
 static event_state_t state = eventState_none;
 static bool detached = false;
 
+#define UART_RECV_BUF_SIZE 2048
 struct UARTRecvBuf {
     unsigned int head;
     unsigned int tail;
-    char data[2048];
+    char data[UART_RECV_BUF_SIZE];
 };
 
 struct UARTRecvBuf *uart_recv_buf = 0;
 gdb_inferior_t *sos_inferior = NULL;
 
+/*
+ * Suspend all threads (that GDB is aware of) in the system
+ */
 void suspend_system() {
     for (int i = 0; i < MAX_THREADS; i++) {
         if (sos_inferior->threads[i].enabled) {
@@ -67,6 +72,9 @@ void suspend_system() {
     }
 }
 
+/*
+ * Resume the threads in the system that are meant to be woken up
+ */
 void resume_system() {
     for (int i = 0; i < MAX_THREADS; i++) {
         if (!sos_inferior->threads[i].enabled) continue;
@@ -77,13 +85,14 @@ void resume_system() {
 }
 
 char gdb_get_char(event_state_t new_state) {
+    /* Check if there are any characters to read */
     while (uart_recv_buf->tail == uart_recv_buf->head) {
-        // Wait for the virt to tell us some input has come through
+        /* Go back to the event loop until some input has come through */
         state = new_state;
         co_switch(t_event);
     }
 
-    char c = uart_recv_buf->data[uart_recv_buf->tail % 2048];
+    char c = uart_recv_buf->data[uart_recv_buf->tail % UART_RECV_BUF_SIZE];
     uart_recv_buf->tail++;
 
     return c;
@@ -93,6 +102,9 @@ void gdb_put_char(char c) {
     uart_putchar_gdb(c);
 }
 
+/*
+ * Recieve a packet from GDB
+ */
 char *get_packet(event_state_t new_state) {
     char c;
     int count;
@@ -161,6 +173,9 @@ char *get_packet(event_state_t new_state) {
     return NULL;
 }
 
+/*
+ * Send a packet to GDB
+ */
 static void put_packet(char *buf, event_state_t new_state)
 {
     uint8_t cksum;
@@ -222,6 +237,9 @@ void handle_debugger_deregister(gdb_thread_t *thread) {
     }
 }
 
+/*
+ * The main GDB event loop
+ */
 static void gdb_event_loop() {
     bool resume = false;
     /* The event loop runs perpetually if we are in the standard event loop phase */
@@ -244,9 +262,9 @@ static void gdb_event_loop() {
     }
 }
 
-#define LABEL_DEBUGGER_REGISTER 1
-#define LABEL_DEBUGGER_DEREGISTER 2
-
+/*
+ * The seL4 event loop for getting IRQs, faults, and registrations
+ */
 void seL4_event_loop() {
     bool have_reply = false;
     seL4_MessageInfo_t reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
@@ -264,7 +282,7 @@ void seL4_event_loop() {
         seL4_Word label = seL4_MessageInfo_get_label(message);
 
         if (badge & IRQ_BIT) {
-            /* Deal with a UART recv notification */
+            /* Deal with a UART recv notification and switch to the coroutine that is waiting on input */
             if (state == eventState_waitingForInputEventLoop) {
                 state = eventState_none;
                 co_switch(t_main);
