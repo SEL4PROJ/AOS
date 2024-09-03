@@ -21,39 +21,6 @@
 #define STACK_SIZE 4096
 static char t_main_stack[STACK_SIZE];
 static char t_invocation_stack[STACK_SIZE];
-static bool in_resume_state = false;
-
-struct pending_registration {
-    uint64_t id;
-    seL4_CPtr tcb;
-};
-
-struct pending_registrations {
-    int head;
-    int tail;
-    struct pending_registration pending[MAX_THREADS];
-};
-
-struct pending_registrations pending_registrations = {0};
-
-bool any_pending_registrations() {
-    return (pending_registrations.tail - pending_registrations.head) > 0;
-}
-
-void add_pending_registration(uint64_t id, seL4_CPtr tcb) {
-    pending_registrations.pending[pending_registrations.tail % MAX_THREADS] =
-        (struct pending_registration) {
-            .id = id,
-            .tcb = tcb
-    };
-    pending_registrations.tail++;
-}
-
-struct pending_registration get_pending_registration() {
-    struct pending_registration ret = pending_registrations.pending[pending_registrations.head % MAX_THREADS];
-    pending_registrations.head++;
-    return ret;
-}
 
 void _putchar(char character) {
     uart_putchar(character);
@@ -263,7 +230,6 @@ static void gdb_event_loop() {
         if (detached || input[0] == 3) {
             /* If we got a ctrl-c packet, we should suspend the whole system */
             suspend_system();
-            in_resume_state = false;
             detached = false;
         }
         resume = gdb_handle_packet(input, output, &detached);
@@ -273,20 +239,7 @@ static void gdb_event_loop() {
         }
 
         if (resume) {
-            if (any_pending_registrations()) {
-                struct pending_registration pr = get_pending_registration();
-                bool success = handle_debugger_register(pr.id, pr.tcb);
-                if (!success) {
-                    while (any_pending_registrations()) {
-                        get_pending_registration();
-                    }
-                    resume_system();
-                    in_resume_state = true;
-                }
-            } else {
-                resume_system();
-                in_resume_state = true;
-            }
+            resume_system();
         }
     }
 }
@@ -341,7 +294,6 @@ void seL4_event_loop() {
                     }
                 }
 
-                in_resume_state = false;
                 have_reply = gdb_handle_fault(faulting_thread, label, &reply_mr, output);
                 t_invocation = co_derive((void *) t_invocation_stack, STACK_SIZE, notify_gdb);
                 co_switch(t_invocation);
@@ -376,14 +328,10 @@ void seL4_event_loop() {
                  *     where GDB gets confused. Adding a print would help debug this, but it
                  *     would be noisy because of reason 1.
                  */
-                if (i == MAX_THREADS && in_resume_state) {
-                    in_resume_state = false;
-                    handle_debugger_register(id, tcb);
-                } else if (i == MAX_THREADS && !in_resume_state) {
-                    seL4_TCB_Suspend(tcb);
-                    add_pending_registration(id, tcb);
-                }
 
+                if (i == MAX_THREADS) {
+                    handle_debugger_register(id, tcb);
+                }
             } else if (label == LABEL_DEBUGGER_DEREGISTER) {
                 seL4_Word id = seL4_GetMR(0);
 

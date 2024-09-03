@@ -565,15 +565,18 @@ NORETURN void *main_continued(UNUSED void *arg)
         IRQ_IDENT_BADGE_BITS
     );
 
+    /* Initialize threads library */
 #ifdef CONFIG_SOS_GDB_ENABLED
     /* Create an endpoint that the GDB threads listens to */
-    seL4_CPtr recv_ep;
-    ut_t *ep_ut = alloc_retype(&recv_ep, seL4_EndpointObject, seL4_EndpointBits);
+    seL4_CPtr gdb_recv_ep;
+    ut_t *ep_ut = alloc_retype(&gdb_recv_ep, seL4_EndpointObject, seL4_EndpointBits);
     ZF_LOGF_IF(ep_ut == NULL, "Failed to create GDB endpoint");
-    init_threads(recv_ep, sched_ctrl_start, sched_ctrl_end);
+
+    init_threads(ipc_ep, gdb_recv_ep, sched_ctrl_start, sched_ctrl_end);
 #else
-    init_threads(ipc_ep, sched_ctrl_start, sched_ctrl_end);
+    init_threads(ipc_ep, ipc_ep, sched_ctrl_start, sched_ctrl_end);
 #endif /* CONFIG_SOS_GDB_ENABLED */
+
     frame_table_init(&cspace, seL4_CapInitThreadVSpace);
 
     /* run sos initialisation tests */
@@ -590,7 +593,7 @@ NORETURN void *main_continued(UNUSED void *arg)
 
 #ifdef CONFIG_SOS_GDB_ENABLED
     /* Initialize the debugger */
-    seL4_Error err = debugger_init(&cspace, seL4_CapIRQControl, recv_ep);
+    seL4_Error err = debugger_init(&cspace, seL4_CapIRQControl, gdb_recv_ep);
     ZF_LOGF_IF(err, "Failed to initialize debugger %d", err);
 #endif /* CONFIG_SOS_GDB_ENABLED */
 
