@@ -75,7 +75,6 @@ static void refill_watermark(cspace_t *cspace, seL4_Word *used)
         if (*used & BIT(i)) {
             cspace->watermark[i] = cspace_alloc_slot(cspace);
             ZF_LOGW_IF(cspace->watermark[i] == seL4_CapNull, "Cspace full in watermark function");
-            break;
         }
     }
 }
@@ -356,7 +355,7 @@ seL4_CPtr cspace_alloc_slot(cspace_t *cspace)
         bf_set_bit(bot_lvl->bf, bot_index);
         /* check if there are any free slots left in this cnode */
         if (bf_first_free(BITFIELD_SIZE(CNODE_SIZE_BITS), bot_lvl->bf) >=
-            (CNODE_SLOTS(CNODE_SIZE_BITS) - 1)) {
+            (CNODE_SLOTS(CNODE_SIZE_BITS))) {
             /* nope - mark the top level as full */
             bf_set_bit(cspace->top_bf, top_index);
         }
@@ -386,8 +385,10 @@ void cspace_free_slot(cspace_t *cspace, seL4_CPtr cptr)
         }
         bf_clr_bit(cspace->top_bf, cptr);
     } else {
-        if (cptr > CNODE_SLOTS(CNODE_SIZE_BITS + cspace->top_lvl_size_bits)) {
+        seL4_CPtr limit = CNODE_SLOTS(cspace->top_lvl_size_bits) * CNODE_SLOTS(CNODE_SIZE_BITS);
+        if (cptr > limit) {
             ZF_LOGE("Attempting to delete slot greater than cspace bounds");
+            return;
         }
 
         bf_clr_bit(cspace->top_bf, TOP_LVL_INDEX(cptr));
