@@ -4,7 +4,7 @@
 #
 # File management and control requests require `curl` to be installed.
 #
-# Connecting to the Serial or Console interfaces requires a version of
+# Connecting to the TTY or Serial interfaces requires a version of
 # `websocat` build with SSL support. (see
 # https://github.com/vi/websocat)
 #
@@ -13,7 +13,6 @@
 #     cargo install \
 #         --git https://github.com/vi/websocat.git \
 #         --features ssl
-#
 
 AUTH_TOKEN_FILE="$HOME/.aos_auth_token"
 AOS_DOMAIN="aos-2.cse.unsw.edu.au"
@@ -21,13 +20,15 @@ AOS_HTTP_URL="https://${AOS_DOMAIN}"
 AOS_WS_URL="wss://${AOS_DOMAIN}"
 
 if [ ! -e "${AUTH_TOKEN_FILE}" ]; then
-	touch "${AUTH_TOKEN_FILE}"
-	chmod 600 "${AUTH_TOKEN_FILE}"
 	printf "Enter UNSW zID: "
-	read zid;
-	if ! curl -f -s -u "${zid}" "${AOS_HTTP_URL}/token" \
-		> "${AUTH_TOKEN_FILE}"; then
-		rm "${AUTH_TOKEN_FILE}"
+	read zid
+
+	if token=$(curl -f -s -u "${zid}" "${AOS_HTTP_URL}/token")
+	then
+		touch "${AUTH_TOKEN_FILE}"
+		chmod 600 "${AUTH_TOKEN_FILE}"
+		printf "%s" "$token" > "${AUTH_TOKEN_FILE}"
+	else
 		echo "Failed to authenticate"
 		exit 1
 	fi
@@ -153,9 +154,20 @@ serial () {
 	ws_stream serial "$@"
 }
 
+# Connect to the hardware UART stream
+serial_raw () {
+	ws_stream serial_raw "$@"
+}
+
 # Connect to the network console
 netcon () {
 	ws_stream netcon "$@"
+}
+
+# Connect to a arbitrary TCP port on the odroid
+tcp () {
+	port=$1; shift
+	ws_stream "tcp/$port" "$@"
 }
 
 show_help () {
@@ -195,8 +207,8 @@ show_help () {
 
 	reallocate
 	    Request allocation of a different ODroidC2. Only use this if you
-	    are having issues with your assigned ODroidC2 and have spoken to
-	    a tutor or course staff.
+	    are having issues with your assigned ODroidC2 (specifically, you're 
+	    unable to reset it) and have spoken to a tutor or course staff.
 
 	take <n>
 	    Take an odroid with a specific numeric identifier
@@ -214,9 +226,16 @@ show_help () {
 	    Connect to the ODroidC2's UART output (where
 	    \`seL4_DebugPutChar\` prints). This is read-only.
 
+	serial_raw
+	    Connect GDB to the ODroidC2's UART output for debugging. Do
+	    not use for any other type of access.
+
 	netcon
-		Connect to assigned ODroidC2's UDP network console
-		interface interactively.
+	    Connect to assigned ODroidC2's UDP network console
+	    interface interactively.
+
+	tcp <port>
+	    Connect to a TCP port on the ODroidC2.
 
 	help, --help, -h
 	    Show this help message.
@@ -242,7 +261,9 @@ case "${action}" in
 	"reconfigure") reconfigure;;
 	"odroids") odroids;;
 	"serial") serial "$@";;
+	"serial_raw") serial_raw "$@";;
 	"netcon") netcon "$@";;
+	"tcp") tcp "$@";;
 	"help") show_help;;
 	"--help") show_help;;
 	"-h") show_help;;
