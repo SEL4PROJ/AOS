@@ -78,7 +78,7 @@ def main():
         ax[i].grid(True)
         ax[i].set_ylabel('Speed (KB/s)')
         ax[i].set_title(key)
-        ax[i].set_xscale('log', basex=2)
+        ax[i].set_xscale('log', base=2)
         ax[i].xaxis.set_ticks(xs[key])
         ax[i].xaxis.set_major_formatter(ticker.ScalarFormatter())
 
