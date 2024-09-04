@@ -4,7 +4,7 @@
 #
 # File management and control requests require `curl` to be installed.
 #
-# Connecting to the TTY or Serial interfaces requires a version of
+# Connecting to the Serial or Console interfaces requires a version of
 # `websocat` build with SSL support. (see
 # https://github.com/vi/websocat)
 #
