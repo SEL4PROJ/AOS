@@ -19,6 +19,9 @@
 #define LABEL_DEBUGGER_REGISTER 1
 #define LABEL_DEBUGGER_DEREGISTER 2
 
+#define SOS_INFERIOR_ID 0
+#define SOS_MAIN_THREAD_ID 0
+
 #define STACK_SIZE 4096
 static char t_main_stack[STACK_SIZE];
 static char t_invocation_stack[STACK_SIZE];
@@ -49,6 +52,10 @@ typedef struct debugger_data {
 static debugger_data_t debugger_data = {};
 static sos_thread_t *debugger_thread = NULL;
 static event_state_t state = eventState_none;
+
+/* Determines if we are currently attached/detached to GDB.
+   If we are not, the stub effective works as a normal event
+   handler and does not report events to GDB */
 static bool detached = false;
 
 #define UART_RECV_BUF_SIZE 2048
@@ -60,29 +67,6 @@ struct UARTRecvBuf {
 
 struct UARTRecvBuf *uart_recv_buf = 0;
 gdb_inferior_t *sos_inferior = NULL;
-
-/*
- * Suspend all threads (that GDB is aware of) in the system
- */
-void suspend_system() {
-    for (int i = 0; i < MAX_THREADS; i++) {
-        if (sos_inferior->threads[i].enabled) {
-            seL4_TCB_Suspend(sos_inferior->threads[i].tcb);
-        }
-    }
-}
-
-/*
- * Resume the threads in the system that are meant to be woken up
- */
-void resume_system() {
-    for (int i = 0; i < MAX_THREADS; i++) {
-        if (!sos_inferior->threads[i].enabled) continue;
-        if (sos_inferior->threads[i].wakeup) {
-            seL4_TCB_Resume(sos_inferior->threads[i].tcb);
-        }
-    }
-}
 
 char gdb_get_char(event_state_t new_state) {
     /* Check if there are any characters to read */
@@ -206,15 +190,26 @@ void notify_gdb() {
 
 
 bool handle_debugger_register(seL4_Word badge, seL4_CPtr tcb) {
-    /* Register the thread as an inferior */
-    gdb_thread_t *thread = gdb_register_thread(sos_inferior, badge, tcb);
-    if (!thread) {
-        printf("GDB: Failed to register thread. You have too many active concurrent threads\n");
-        return false;
-    }
+	DebuggerError err = gdb_register_thread(SOS_INFERIOR_ID, badge, tcb, output);
+	if (err == DebuggerError_InvalidArguments) {
+		ZF_LOGE("GDB: You have registered two unique threads with the same badge");
+		return false;
+	} else if (err == DebuggerError_InsufficientResources) {
+		ZF_LOGE("GDB: Failed to register thread. You have too many active threads");
+		return false;
+	}
 
-    if (!detached) {
-        gdb_thread_spawn(thread, output);
+	/*
+	 * We do this err == DebuggerError_NoError check because calling TCB_Suspend(), as is
+	 * done in suspend_system, cancels in-progress IPC. When the thread is resumed, it
+	 * will then attempt the IPC again. Specifically, this will happen for the thread
+	 * that is calling debugger_register, meaning that the IPC will be done  twice
+	 * with the exact same parameters. We basically just ignore the second one to avoid
+	 * going into an infinite loop
+	 */
+
+    /* Register the thread as an inferior */
+    if (!detached && err == DebuggerError_NoError) {
         /* We suspend the system here (after adding the new thread).
            This is fine on single-core. */
         suspend_system();
@@ -225,16 +220,24 @@ bool handle_debugger_register(seL4_Word badge, seL4_CPtr tcb) {
     return true;
 }
 
-void handle_debugger_deregister(gdb_thread_t *thread) {
+bool handle_debugger_deregister(seL4_Word badge) {
 
     /* Remove the thread from GDB */
-    gdb_thread_exit(thread, output);
+	DebuggerError err = gdb_thread_exit(SOS_INFERIOR_ID, badge, output);
+    if (err == DebuggerError_InvalidArguments) {
+    	ZF_LOGE("GDB: Internal assertion failed. Could not find the thread");
+    	return false;
+    }
 
+    /* This does not have the same problem as above because gdb_thread_exit removes the thread
+       from the domain of the debugger (so it won't be suspended by the suspend_system() call) */
     if (!detached) {
         suspend_system();
         t_invocation = co_derive((void *) t_invocation_stack, STACK_SIZE, notify_gdb);
         co_switch(t_invocation);
     }
+
+    return true;
 }
 
 /*
@@ -304,15 +307,10 @@ void seL4_event_loop() {
             if (!detached) {
                 suspend_system();
 
-                gdb_thread_t *faulting_thread = NULL;
-                for (int i = 0; i < 256; i++) {
-                    if (id == sos_inferior->threads[i].id) {
-                        faulting_thread = &sos_inferior->threads[i];
-                        break;
-                    }
+                DebuggerError err = gdb_handle_fault(SOS_INFERIOR_ID, id, label, &reply_mr, output, &have_reply);
+                if (err) {
+                	ZF_LOGE("GDB: Internal assertion failed. Could not find faulting thread");
                 }
-
-                have_reply = gdb_handle_fault(faulting_thread, label, &reply_mr, output);
                 t_invocation = co_derive((void *) t_invocation_stack, STACK_SIZE, notify_gdb);
                 co_switch(t_invocation);
 
@@ -327,42 +325,11 @@ void seL4_event_loop() {
                 seL4_Word id = seL4_GetMR(0);
                 seL4_CPtr tcb = seL4_GetMR(1);
 
-                int i = 0;
-                for (; i < MAX_THREADS; i++) {
-                    if (id == sos_inferior->threads[i].id) {
-                        break;
-                    }
-                }
-
-                /* We only register if this ID is not already registered
-                 *
-                 * We do this check for two reasons:
-                 *  1. TCB_Suspend() cancels an in-progress IPC, and when the thread is resumed, it
-                 *     will attempt the IPC again, which can result in duplicate entries. In
-                 *     particular, this will happen for the thread that is calling
-                 *     debugger_register, meaning that it will be called twice for every thread as
-                 *     handle_debugger_register() suspends the calling thread.
-                 *  2. If you accidentally provide two identical IDs, this can cause issues
-                 *     where GDB gets confused. Adding a print would help debug this, but it
-                 *     would be noisy because of reason 1.
-                 */
-
-                if (i == MAX_THREADS) {
-                    handle_debugger_register(id, tcb);
-                }
+                handle_debugger_register(id, tcb);
             } else if (label == LABEL_DEBUGGER_DEREGISTER) {
                 seL4_Word id = seL4_GetMR(0);
 
-                int i = 0;
-                for (; i < MAX_THREADS; i++) {
-                    if (id == sos_inferior->threads[i].id) {
-                        break;
-                    }
-                }
-
-                if (i != MAX_THREADS) {
-                    handle_debugger_deregister(&sos_inferior->threads[i]);
-                }
+                handle_debugger_deregister(id);
             }
 
             reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
@@ -372,10 +339,17 @@ void seL4_event_loop() {
 }
 
 void debugger_main(UNUSED void *data) {
-
     /* Register the main GDB thread */
-    sos_inferior = gdb_register_inferior(0, seL4_CapInitThreadVSpace);
-    gdb_register_thread(sos_inferior, 0, seL4_CapInitThreadTCB);
+    DebuggerError err = gdb_register_inferior(SOS_INFERIOR_ID, seL4_CapInitThreadVSpace);
+    if (err) {
+    	ZF_LOGE("GDB: Failed to register SOS inferior %d", err);
+    	return;
+    }
+    err = gdb_register_thread(SOS_INFERIOR_ID, SOS_MAIN_THREAD_ID, seL4_CapInitThreadTCB, output);
+    if (err) {
+    	ZF_LOGE("GDB: Failed to register SOS main thread");
+    	return;
+    }
 
     /* Suspend the threads in the system */
     suspend_system();
