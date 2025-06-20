@@ -286,12 +286,14 @@ void seL4_event_loop() {
 
         if (badge & IRQ_BIT) {
             /* Deal with a UART recv notification and switch to the coroutine that is waiting on input */
+            if (state == eventState_waitingForInputInvocation) {
+                state = eventState_none;
+                co_switch(t_invocation);
+            }
+
             if (state == eventState_waitingForInputEventLoop) {
                 state = eventState_none;
                 co_switch(t_main);
-            } else if (state == eventState_waitingForInputInvocation) {
-                state = eventState_none;
-                co_switch(t_invocation);
             }
             have_reply = false;
         } else if (badge & DEBUGGER_FAULT_BIT) {
