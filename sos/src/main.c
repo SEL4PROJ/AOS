@@ -481,7 +481,7 @@ bool start_first_process(char *app_name, seL4_CPtr ep)
         .pc = elf_getEntryPoint(&elf_file),
         .sp = sp,
     };
-    printf("Starting ttytest at %p\n", (void *) context.pc);
+    printf("Starting console_test at %p\n", (void *) context.pc);
     err = seL4_TCB_WriteRegisters(user_process.tcb, 1, 0, 2, &context);
     ZF_LOGE_IF(err, "Failed to write registers");
     return err == seL4_NoError;
@@ -595,6 +595,7 @@ NORETURN void *main_continued(UNUSED void *arg)
     /* Initialize the debugger */
     seL4_Error err = debugger_init(&cspace, seL4_CapIRQControl, gdb_recv_ep);
     ZF_LOGF_IF(err, "Failed to initialize debugger %d", err);
+    char secret_string[15] = "Welcome to AOS!";
 #endif /* CONFIG_SOS_GDB_ENABLED */
 
     /* Initialises the timer */
