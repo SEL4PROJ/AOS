@@ -595,6 +595,7 @@ NORETURN void *main_continued(UNUSED void *arg)
     /* Initialize the debugger */
     seL4_Error err = debugger_init(&cspace, seL4_CapIRQControl, gdb_recv_ep);
     ZF_LOGF_IF(err, "Failed to initialize debugger %d", err);
+    char secret_string[15] = "Welcome to AOS!";
 #endif /* CONFIG_SOS_GDB_ENABLED */
 
     /* Initialises the timer */
