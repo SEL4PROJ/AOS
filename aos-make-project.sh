@@ -65,10 +65,9 @@ main () {
 		-srf \
 		"projects/aos/init-build.sh" \
 		"${DEST_REPO}/init-build.sh"
-	ln \
-		-srf \
+	mv \
 		"projects/aos/.gitignore" \
-		"${DEST_REPO}/.gitignore"
+		"${DEST_REPO}"
 	ln \
 		-srf \
 		"projects/aos/settings.cmake" \
